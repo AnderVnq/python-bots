@@ -1,0 +1,53 @@
+version: "3"
+services:
+  selenium:
+    image: selenium/standalone-chrome:latest
+    restart: always
+    shm_size: 4g # Ajusta según los recursos de tu servidor
+    ports:
+      - "4444:4444"
+      - "5900:5900"
+    environment:
+      - SE_NODE_MAX_SESSIONS=8
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: "8g"
+        reservations:
+          cpus: "2.0"
+          memory: "4g"
+    networks:
+      - api-network
+  app:
+    build: .
+    env_file:
+      - .env
+    restart: on-failure
+    ports:
+      - "9090:5000"
+    volumes:
+      - ../Public:/var/www/html/Public
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=America/Chicago
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: "10g"
+        reservations:
+          cpus: "2.0"
+          memory: "5g"
+
+    depends_on:
+      - selenium
+    networks:
+      - api-network
+
+networks:
+  api-network:
+    driver: bridge

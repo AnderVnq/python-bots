@@ -1,0 +1,52 @@
+# Ignora archivos y carpetas de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de logs
+*.log
+logs/
+*.out
+*.err
+
+# Entornos virtuales locales
+venv/
+.venv/
+env/
+ENV/
+
+# Configuraciones de IDEs y editores
+.vscode/
+.idea/
+*.swp
+
+# Archivos y carpetas de tests locales
+test/
+tests/
+coverage/
+.tox/
+*.cover
+*.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.spec
+
+# Archivos de configuraciones de Docker y CI/CD
+.dockerignore
+docker-compose.yml
+Dockerfile.*
+
+# Otros archivos comunes
+*.db
+*.sqlite3
+*.pid
+*.bak
+*.old
+*.orig
+
+# Claves, tokens o configuraciones locales sensibles
+.env
+*.secret
