@@ -8,12 +8,14 @@ from routes.juntoz_search import juntoz_bp
 from routes.plaza_vea_search import plaza_vea_bp
 from routes.oechsle_search import oechsle_bp
 from routes.promart_search import promart_bp
+from routes.sensores import sensores_bp
 app = Flask(__name__)
 app.register_blueprint(ripley_bp)
 app.register_blueprint(juntoz_bp)
 app.register_blueprint(plaza_vea_bp)
 app.register_blueprint(oechsle_bp)
 app.register_blueprint(promart_bp)
+app.register_blueprint(sensores_bp)
 
 
 
