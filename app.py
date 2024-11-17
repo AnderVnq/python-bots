@@ -9,7 +9,7 @@ from routes.oechsle_search import oechsle_bp
 from routes.promart_search import promart_bp
 from routes.sensores import sensores_bp
 from _config.db_config import engine
-from models.database_bots import Base
+from models.database_bots import Base, RankingProduct
 import sqlite3
 app = Flask(__name__)
 
@@ -80,6 +80,19 @@ if not app.debug:  # Solo habilitar logs avanzados si no está en modo debug
 @app.route('/')
 def hello():
     return jsonify("Bienvenido a la API de Ranking Products"), 200
+
+
+
+
+@app.route('/get_ranking', methods=['GET'])
+def get_ranking():
+    ranking = RankingProduct.get_ranking()
+
+
+    return jsonify(ranking), 200
+
+
+
 
 
 

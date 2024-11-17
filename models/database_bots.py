@@ -57,9 +57,9 @@ class RankingProduct(Base):
             return session.query(cls).filter(cls.shop_name == shop_name).all()
     
     @classmethod
-    def get_ranking_by_keyword(cls, keyword):
+    def get_ranking_by_sku(cls, sku_cf):
         with get_db_session() as session:
-            return session.query(cls).filter(cls.keyword == keyword).all()
+            return session.query(cls).filter(cls.sku_cf == sku_cf).all()
 
     def crear_ranking(self):
             try:
