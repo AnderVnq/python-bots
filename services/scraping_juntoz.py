@@ -152,7 +152,7 @@ class JuntozManager(WebDriverManager):
                     resultado["sku"]=iph
                     resultado["nombre_producto"]=product_name
                     nuevo_producto = RankingProduct(
-                        product_name=search_text,
+                        product_name=product_name,
                         shop_name="Juntoz",
                         position=index + 1,
                         page=pagina_actual,

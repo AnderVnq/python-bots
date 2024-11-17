@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy.orm import declarative_base
 from _config.db_config import get_db_session,engine
+from sqlalchemy import DECIMAL
 
 
 # Definir la base para los modelos
@@ -24,6 +25,7 @@ class RankingProduct(Base):
     created_at=Column(DateTime,default=datetime.now,nullable=False)
     updated_at=Column(DateTime,default=datetime.now,nullable=False,onupdate=datetime.now)
     sku_cf=Column(String(100),unique=True)
+    precio_normal=Column(DECIMAL(10, 2))
 
 
     def __repr__(self):
