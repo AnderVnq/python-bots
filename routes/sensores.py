@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify
-
+from flask import Blueprint, request, jsonify,current_app
+from datetime import datetime
+import sqlite3
 
 
 
@@ -12,44 +13,35 @@ registros = []
 
 
 
+
 @sensores_bp.route('/api/sensores', methods=['GET', 'POST'])
 def manejar_datos():
+    conn = current_app.config['db_connection']
+    cursor = conn.cursor()
+
     if request.method == 'POST':
-        # Si es una solicitud POST, recibimos los datos de los sensores
         datos = request.get_json()
-
         if not datos:
-            return jsonify({"error": "Datos no recibidos"}), 400
+            return jsonify({"status": False, "message": "Datos no recibidos"}), 400
 
-        # Validación de los tipos de datos
         try:
-            sensor_humo = int(datos.get("sensorHumo"))
-            sensor_fuego = int(datos.get("sensorFuego"))
-            timestamp = str(datos.get("timestamp"))  # En este caso esperamos un timestamp como string
+            dato1 = int(datos.get("dato1"))
+            dato2 = int(datos.get("dato2"))
+            fecha_hora_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, TypeError):
-            return jsonify({"error": "Tipo de dato incorrecto"}), 400
+            return jsonify({"status": False, "message": "Tipo de dato incorrecto"}), 400
 
-        # Validación para asegurarnos de que los datos no sean nulos
-        if sensor_humo is None or sensor_fuego is None or timestamp is None:
-            return jsonify({"error": "Faltan datos de los sensores o timestamp"}), 400
+        cursor.execute("INSERT INTO registros (dato1, dato2, fecha) VALUES (?, ?, ?)",
+                       (dato1, dato2, fecha_hora_actual))
+        conn.commit()
 
-        # Crear un diccionario con los datos de los sensores
-        registro = {
-            "sensorHumo": sensor_humo,
-            "sensorFuego": sensor_fuego,
-            "timestamp": timestamp
-        }
+        return jsonify({"status": True, "message": "Datos recibidos correctamente"}), 200
 
-        # Agregar el registro a la lista
-        registros.append(registro)
-
-        # Responder con un mensaje de éxito
-        return jsonify({"status": "Datos recibidos correctamente"}), 200
-    
     elif request.method == 'GET':
-        # Si es una solicitud GET, devolvemos los registros almacenados
-        return jsonify(registros), 200
-
+        cursor.execute("SELECT dato1, dato2, fecha FROM registros")
+        registros = cursor.fetchall()
+        registros_json = [{"dato1": row[0], "dato2": row[1], "fecha": row[2]} for row in registros]
+        return jsonify(registros_json), 200
 
 
 

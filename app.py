@@ -10,9 +10,26 @@ from routes.promart_search import promart_bp
 from routes.sensores import sensores_bp
 from _config.db_config import engine
 from models.database_bots import Base
+import sqlite3
 app = Flask(__name__)
 
 Base.metadata.create_all(engine)
+
+
+conn = sqlite3.connect('sensores.db', check_same_thread=False)
+cursor = conn.cursor()
+
+# Crear la tabla si no existe
+cursor.execute('''CREATE TABLE IF NOT EXISTS registros (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dato1 INTEGER,
+                    dato2 INTEGER,
+                    fecha TEXT
+                )''')
+conn.commit()
+
+app.config['db_connection'] = conn
+
 #app.register_blueprint(ripley_bp)
 app.register_blueprint(juntoz_bp)
 app.register_blueprint(plaza_vea_bp)
