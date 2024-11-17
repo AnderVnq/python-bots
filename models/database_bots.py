@@ -35,11 +35,24 @@ class RankingProduct(Base):
     def __str__(self):
         return f"RankingProduct(id={self.id},product_name={self.product_name},shop_name={self.shop_name},position={self.position},page={self.page},created_at={self.created_at},updated_at={self.updated_at}"
     
-
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "product_name": self.product_name,
+            "shop_name": self.shop_name,
+            "position": self.position,
+            "last_position": self.last_position,
+            "last_page": self.last_page,
+            "page": self.page,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "sku_cf": self.sku_cf,
+            "precio_normal": float(self.precio_normal) if self.precio_normal else None,
+        }
     @classmethod
     def get_ranking(cls):
         with get_db_session() as session:
-            return session.query(cls).all()
+            return [product.to_dict() for product in session.query(cls).all()]
     
     @classmethod
     def get_ranking_by_id(cls, id):
