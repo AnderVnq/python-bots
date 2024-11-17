@@ -2,15 +2,18 @@ from logging.handlers import RotatingFileHandler
 import os
 import logging 
 from flask import Flask,send_from_directory,jsonify
-from config import Config
 from routes.ripley_search import ripley_bp
 from routes.juntoz_search import juntoz_bp
 from routes.plaza_vea_search import plaza_vea_bp
 from routes.oechsle_search import oechsle_bp
 from routes.promart_search import promart_bp
 from routes.sensores import sensores_bp
+from _config.db_config import engine
+from models.database_bots import Base
 app = Flask(__name__)
-app.register_blueprint(ripley_bp)
+
+Base.metadata.create_all(engine)
+#app.register_blueprint(ripley_bp)
 app.register_blueprint(juntoz_bp)
 app.register_blueprint(plaza_vea_bp)
 app.register_blueprint(oechsle_bp)
@@ -56,6 +59,12 @@ if not app.debug:  # Solo habilitar logs avanzados si no está en modo debug
 #     docs_path = Config.DOCS_PATH #os.path.join(app.root_path, 'Public/docs')
 #     print(f"Attempting to serve from: {docs_path}")  # Esto te ayudará a verificar la ruta
 #     return send_from_directory(docs_path, filename)
+
+@app.route('/')
+def hello():
+    return jsonify("Bienvenido a la API de Ranking Products"), 200
+
+
 
 @app.errorhandler(500)
 def internal_server_error(e):

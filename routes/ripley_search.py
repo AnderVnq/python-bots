@@ -28,9 +28,9 @@ ripley_bp = Blueprint('ripley_bp', __name__)
     
 
 
-@ripley_bp.route('/', methods=['GET'])
-def  hello():
-    return jsonify({"message": "Hello, World!"}), 200
+# @ripley_bp.route('/', methods=['GET'])
+# def  hello():
+#     return jsonify({"message": "Hello, World!"}), 200
 
 
 

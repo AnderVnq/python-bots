@@ -5,7 +5,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 import re
 import time
 from shared.driver_bots import WebDriverManager
-#from models.database_bots import RankingProduct
+from models.database_bots import RankingProduct
 
 
 class JuntozManager(WebDriverManager):
@@ -151,15 +151,20 @@ class JuntozManager(WebDriverManager):
                     resultado["pagina"]=pagina_actual
                     resultado["sku"]=iph
                     resultado["nombre_producto"]=product_name
-                    # nuevo_producto = RankingProduct(
-                    #     product_name=search_text,
-                    #     shop_name="Juntoz",
-                    #     position=index + 1,
-                    #     page=pagina_actual,
-                    #     keyword=id_producto
-                    # )
-                    # nuevo_producto.crear_ranking()
-                    
+                    nuevo_producto = RankingProduct(
+                        product_name=search_text,
+                        shop_name="Juntoz",
+                        position=index + 1,
+                        page=pagina_actual,
+                        sku_cf=id_producto
+                    )
+                    response=nuevo_producto.crear_ranking()
+                    if response is None:
+                        print("Error al guardar el producto en la base de datos.")
+                        response["message"]="Error al guardar el producto en la base de datos."
+                        response["success"]=False
+                        return response
+
                     print(f"Coincidencia encontrada en el contenedor {resultado['contenedor']} de la página {resultado['pagina']}: {resultado}")
                     return resultado
             try:
