@@ -156,7 +156,8 @@ class JuntozManager(WebDriverManager):
                         shop_name="Juntoz",
                         position=index + 1,
                         page=pagina_actual,
-                        sku_cf=id_producto
+                        sku_cf=id_producto,
+                        precio_normal=None,
                     )
                     response=nuevo_producto.crear_ranking()
                     if response is None:

@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
+from contextlib import contextmanager
 
 # Cargar las variables de entorno
 load_dotenv()
@@ -22,6 +23,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 # Context manager para obtener sesiones
+@contextmanager
 def get_db_session():
     session = SessionLocal()
     try:
