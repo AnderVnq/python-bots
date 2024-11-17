@@ -57,22 +57,26 @@ class RankingProduct(Base):
     @classmethod
     def get_ranking_by_id(cls, id):
         with get_db_session() as session:
-            return session.query(cls).filter(cls.id == id).first()
+            ranking=session.query(cls).filter(cls.id == id).first()
+            return ranking.to_dict()
     
     @classmethod
     def get_ranking_by_product_name(cls, product_name):
         with get_db_session() as session:
-            return session.query(cls).filter(cls.product_name == product_name).all()
+            rankings= session.query(cls).filter(cls.product_name == product_name).all()
+            return [ranking.to_dict() for ranking in rankings]
     
     @classmethod
     def get_ranking_by_shop_name(cls, shop_name):
         with get_db_session() as session:
-            return session.query(cls).filter(cls.shop_name == shop_name).all()
+            rankings= session.query(cls).filter(cls.shop_name == shop_name).all()
+            return [ranking.to_dict() for ranking in rankings]
     
     @classmethod
     def get_ranking_by_sku(cls, sku_cf):
         with get_db_session() as session:
-            return session.query(cls).filter(cls.sku_cf == sku_cf).all()
+            ranking=session.query(cls).filter(cls.sku_cf == sku_cf).first()
+            return ranking.to_dict() if ranking else None
 
     def crear_ranking(self):
             try:
