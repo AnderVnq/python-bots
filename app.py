@@ -2,6 +2,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import logging 
 from flask import Flask,send_from_directory,jsonify
+from flask_cors import CORS
 from routes.ripley_search import ripley_bp
 from routes.juntoz_search import juntoz_bp
 from routes.plaza_vea_search import plaza_vea_bp
@@ -12,7 +13,7 @@ from _config.db_config import engine
 from models.database_bots import Base, RankingProduct
 import sqlite3
 app = Flask(__name__)
-
+CORS(app)
 Base.metadata.create_all(engine)
 
 
