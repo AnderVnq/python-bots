@@ -106,8 +106,27 @@ class SheinController():
             WebDriverWait(self.driver, 20).until(
                 EC.presence_of_element_located((By.ID,"goods-detail-v3"))
             )
+
+            banner_is_closed=self.close_banner()
+            if banner_is_closed:
+                print("Banner cerrado")
+            else:
+                print("No se encontró el banner")
+
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+            #generar el html
+            # with open("product.html", "w", encoding="utf-8") as file:
+            #     file.write(self.driver.page_source)
+
+            response_captura=self.capture_image_size("png")
+            if response_captura:
+                print("Captura realizada con éxito")
+            else:
+                print("Error al realizar la captura")
             response_json=self.extract_data_soup()
+
+
 
             if response_json:
                 print("Información extraída con éxito")
@@ -129,7 +148,7 @@ class SheinController():
                 EC.presence_of_element_located((By.XPATH, '//div[@class="sui-dialog__body"]'))
             )
             close_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//div[@class="sui-dialog__body"]//span[@class="sui-icon-common__wrap icon-close homepage-she-close"] | //div[@class="sui-dialog__body"]//div[@class="dialog-header-v2__close-btn"]//svg'))
+                EC.element_to_be_clickable((By.XPATH, '//div[@class="sui-dialog__body"]//span[@class="sui-icon-common__wrap icon-close homepage-she-close"] | //div[@class="sui-dialog__body"]//div[@class="dialog-header-v2__close-btn"]/*'))
             )
             close_button.click()
             return True
@@ -174,6 +193,20 @@ class SheinController():
             return None
 
 
+
+    def close_banner(self):
+        try:
+            close_button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//div[@class="c-quick-register j-quick-register c-quick-register__enes"]//div[@class="quickg-outside"]'))
+            )
+            close_button.click()
+
+            return True
+        except Exception as e:
+            print("No se encontró el banner de registro rápido")
+            return False
+
+
     def structure_data(self,data):
         try:
             product_data = defaultdict(list)
@@ -187,15 +220,44 @@ class SheinController():
             if variantes:
                 
                 for variante in variantes:
-                    product_data[sku].append({
-                        ""
-                    })
+                    print(variante)
 
 
 
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
             return None
+
+
+
+
+
+
+    def capture_image_size(self, extension):
+        try:
+
+            container=self.driver.find_element(By.XPATH, '//div[@class="product-intro__size-help"]')
+            elemento=container.find_element(By.XPATH,".//div[@class='product-intro__size-guide']")
+
+            elemento.click()
+            self.driver.implicitly_wait(2)
+            # Espera a que el contenedor esté presente en la página
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@class="sui-dialog__wrapper sui-dialog__W720"]'))
+            )
+            
+            # Localiza el elemento que contiene la imagen
+            image = self.driver.find_element(By.XPATH, '//div[@class="sui-dialog__wrapper sui-dialog__W720"]//div[@class="sui-dialog__body"]')
+            
+            # Toma la captura de pantalla y la guarda con la extensión especificada
+            image.screenshot(f"image.{extension}")
+            
+            return True  # Retorna True si todo salió bien
+        
+        except Exception as e:
+            # Maneja cualquier excepción (puedes registrar el error si es necesario)
+            print(f"Error al capturar la imagen: {e}")
+            return False
 
 
 def main():
