@@ -10,14 +10,14 @@ services:
     environment:
       - SE_NODE_MAX_SESSIONS=8
       - SE_NODE_OVERRIDE_MAX_SESSIONS=true
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "3.0"
-    #       memory: "8g"
-    #     reservations:
-    #       cpus: "2.0"
-    #       memory: "4g"
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: "8g"
+        reservations:
+          cpus: "2.0"
+          memory: "4g"
     networks:
       - api-network
   app:
@@ -34,14 +34,14 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - TZ=America/Chicago
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "3.0"
-    #       memory: "10g"
-    #     reservations:
-    #       cpus: "2.0"
-    #       memory: "5g"
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: "10g"
+        reservations:
+          cpus: "2.0"
+          memory: "5g"
 
     depends_on:
       - selenium
