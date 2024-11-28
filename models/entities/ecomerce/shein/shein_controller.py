@@ -86,12 +86,12 @@ class SheinController():
             opts.add_argument(f'User-agent={headers["User-Agent"]}')
 
             # Intenta conectarte al servidor de Selenium
-            # driver= webdriver.Remote(
-            #     command_executor=selenium_url,
-            #     options=opts
-            # )
+            driver= webdriver.Remote(
+                command_executor=selenium_url,
+                options=opts
+            )
 
-            driver= webdriver.Chrome(options=opts)
+            #driver= webdriver.Chrome(options=opts)
             return driver
 
 
