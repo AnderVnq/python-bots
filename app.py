@@ -9,27 +9,32 @@ from routes.plaza_vea_search import plaza_vea_bp
 from routes.oechsle_search import oechsle_bp
 from routes.promart_search import promart_bp
 from routes.sensores import sensores_bp
-from _config.db_config import engine
+from routes.shein_routes import shein_bp
+from _config.db_config import DBConfigSQLAlchemy
 from models.database_bots import Base, RankingProduct
 import sqlite3
 app = Flask(__name__)
 CORS(app)
+
+db_congif = DBConfigSQLAlchemy()
+engine = db_congif.engine
+
 Base.metadata.create_all(engine)
 
 
-conn = sqlite3.connect('sensores.db', check_same_thread=False)
-cursor = conn.cursor()
+# conn = sqlite3.connect('sensores.db', check_same_thread=False)
+# cursor = conn.cursor()
 
-# Crear la tabla si no existe
-cursor.execute('''CREATE TABLE IF NOT EXISTS registros (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    dato1 INTEGER,
-                    dato2 INTEGER,
-                    fecha TEXT
-                )''')
-conn.commit()
+# # Crear la tabla si no existe
+# cursor.execute('''CREATE TABLE IF NOT EXISTS registros (
+#                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+#                     dato1 INTEGER,
+#                     dato2 INTEGER,
+#                     fecha TEXT
+#                 )''')
+# conn.commit()
 
-app.config['db_connection'] = conn
+# app.config['db_connection'] = conn
 
 #app.register_blueprint(ripley_bp)
 app.register_blueprint(juntoz_bp)
@@ -37,6 +42,7 @@ app.register_blueprint(plaza_vea_bp)
 app.register_blueprint(oechsle_bp)
 app.register_blueprint(promart_bp)
 app.register_blueprint(sensores_bp)
+app.register_blueprint(shein_bp)
 
 
 

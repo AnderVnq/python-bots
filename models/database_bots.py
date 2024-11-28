@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String ,DateTime
 import uuid
 from datetime import datetime
 from sqlalchemy.orm import declarative_base
-from _config.db_config import get_db_session,engine
+from _config.db_config import DBConfigSQLAlchemy
 from sqlalchemy import DECIMAL
 
 
@@ -51,36 +51,42 @@ class RankingProduct(Base):
         }
     @classmethod
     def get_ranking(cls):
-        with get_db_session() as session:
+        config=DBConfigSQLAlchemy()
+        with config.get_db_session() as session:
             return [product.to_dict() for product in session.query(cls).all()]
     
     @classmethod
     def get_ranking_by_id(cls, id):
-        with get_db_session() as session:
+        config=DBConfigSQLAlchemy()
+        with config.get_db_session() as session:
             ranking=session.query(cls).filter(cls.id == id).first()
             return ranking.to_dict()
     
     @classmethod
     def get_ranking_by_product_name(cls, product_name):
-        with get_db_session() as session:
+        config=DBConfigSQLAlchemy()
+        with config.get_db_session() as session:
             rankings= session.query(cls).filter(cls.product_name == product_name).all()
             return [ranking.to_dict() for ranking in rankings]
     
     @classmethod
     def get_ranking_by_shop_name(cls, shop_name):
-        with get_db_session() as session:
+        config=DBConfigSQLAlchemy()
+        with config.get_db_session() as session:
             rankings= session.query(cls).filter(cls.shop_name == shop_name).all()
             return [ranking.to_dict() for ranking in rankings]
     
     @classmethod
     def get_ranking_by_sku(cls, sku_cf):
-        with get_db_session() as session:
+        config=DBConfigSQLAlchemy()
+        with config.get_db_session() as session:
             ranking=session.query(cls).filter(cls.sku_cf == sku_cf).first()
             return ranking.to_dict() if ranking else None
 
     def crear_ranking(self):
             try:
-                with get_db_session() as session:
+                config=DBConfigSQLAlchemy()
+                with config.get_db_session() as session:
                     # Verificar si el producto con el mismo sku_cf ya existe
                     existing_ranking:RankingProduct = session.query(RankingProduct).filter(RankingProduct.sku_cf == self.sku_cf).first()
                     
@@ -127,7 +133,8 @@ class RankingProduct(Base):
     @classmethod
     def update_ranking_by_id(cls, id, **kwargs):
         try:
-            with get_db_session() as session:
+            config=DBConfigSQLAlchemy()
+            with config.get_db_session() as session:
                 # Buscar el registro en la base de datos
                 existing_ranking = session.query(cls).filter(cls.id == id).first()
 

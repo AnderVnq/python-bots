@@ -64,19 +64,19 @@ ripley_bp = Blueprint('ripley_bp', __name__)
 #creame un endoin para recivir datos y me lo muestre en la response 
 #crea un endpoint para recibir datos y me lo muestre en la response
 #ripley_bp.route('api/sensores/',methods=['POST'])
-@ripley_bp.route('/api/sensores/', methods=['POST'])
-def generate_texto():
-    # Obtener los datos de la petición
-    data = request.json
-    # Validar que los datos estén presentes
-    if not data:
-        return jsonify({"error": "No se encontraron datos"}), 400
-    # Obtener el valor de la llave 'texto' del diccionario data
-    texto = data.get('texto')
-    # Validar que el texto esté presente
-    if not texto:
-        return jsonify({"error": "No se encontró el texto"}), 400
-    # Retornar el texto en mayúsculas
-    return jsonify({"texto": texto.upper()}), 200
+# @ripley_bp.route('/api/sensores/', methods=['POST'])
+# def generate_texto():
+#     # Obtener los datos de la petición
+#     data = request.json
+#     # Validar que los datos estén presentes
+#     if not data:
+#         return jsonify({"error": "No se encontraron datos"}), 400
+#     # Obtener el valor de la llave 'texto' del diccionario data
+#     texto = data.get('texto')
+#     # Validar que el texto esté presente
+#     if not texto:
+#         return jsonify({"error": "No se encontró el texto"}), 400
+#     # Retornar el texto en mayúsculas
+#     return jsonify({"texto": texto.upper()}), 200
 
 

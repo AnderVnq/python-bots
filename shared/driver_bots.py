@@ -38,11 +38,11 @@ class WebDriverManager:
         if self.proxy:
             opts.add_argument(f'--proxy-server={self.proxy}')
 
-        #self.driver = webdriver.Chrome(options=opts)
-        self.driver= webdriver.Remote(
-            command_executor=selenium_url,
-            options=opts
-        )
+        self.driver = webdriver.Chrome(options=opts)
+        # self.driver= webdriver.Remote(
+        #     command_executor=selenium_url,
+        #     options=opts
+        # )
         return self.driver
 
     def finalizar_webdriver(self):
