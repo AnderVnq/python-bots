@@ -48,7 +48,7 @@ class SheinController():
         self.lenght_sku_list = None
         self.affected_rows = 0
         self.images_path = os.getenv('IMAGES_PATH')
-        self.domain_path = os.getenv('DOMAIN')
+        self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
  
     def init_driver(self):
@@ -149,7 +149,7 @@ class SheinController():
     
     def extract_info(self,index:int):    
         self.driver.implicitly_wait(5)
-        self.driver.get(self.url_complete) 
+        #self.driver.get(self.url_complete) 
         try:
             WebDriverWait(self.driver, 10).until(
                 lambda d: "captcha" not in d.current_url
@@ -165,19 +165,19 @@ class SheinController():
         else:
             print("Permaneciendo en la página del CAPTCHA.")
         try:
-            modal_is_closed = self.close_modal()
-            if modal_is_closed:
-                print("Modal cerrado")
-            else:
-                print("No se encontró el modal")
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID,"goods-detail-v3"))
-            )
-            banner_is_closed=self.close_banner()
-            if banner_is_closed:
-                print("Banner cerrado")
-            else:
-                print("No se encontró el banner")
+            # modal_is_closed = self.close_modal()
+            # if modal_is_closed:
+            #     print("Modal cerrado")
+            # else:
+            #     print("No se encontró el modal")
+            # WebDriverWait(self.driver, 10).until(
+            #     EC.presence_of_element_located((By.ID,"goods-detail-v3"))
+            # )
+            # banner_is_closed=self.close_banner()
+            # if banner_is_closed:
+            #     print("Banner cerrado")
+            # else:
+            #     print("No se encontró el banner")
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             response_json=self.extract_data_soup()
             if response_json:
@@ -285,17 +285,8 @@ class SheinController():
             except (KeyError, TypeError):
                 variantes = []  # Si hay un error, se asigna una lista vacía
 
-            # try:
-            #     variantes_color = (
-            #         data.get('productIntroData', {})
-            #         .get('relation_color', [])
-            #     )
-            # except (KeyError, TypeError):
-            #     variantes_color = []  # Si hay un error, se asigna una lista vacía
 
-            # Validar la unión de las listas
-            #variantes_unidas = (variantes if variantes else []) + (variantes_color if variantes_color else [])
-
+            print("En structure data")
             for key,value in enumerate(db_data["child"]):
                 
                 compare_sku=value.get("sku").strip().upper()
@@ -304,7 +295,7 @@ class SheinController():
                     
                     price_src=data.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
                     price = price_src if price_src else None
-                    
+
                     db_data["child"][key]["original_price"]=price
                     try:
                         quantity = data.get('productIntroData', {}).get('detail', {}).get('stock')
@@ -329,7 +320,7 @@ class SheinController():
                     if not bool(int(value.get("description_saved", 0))) and bool(int(value.get("verify_description", 0))):
 
                         product_description_src=self.set_product_description_ctrl()
-                        db_data["child"][key]["product_description"]=product_description_src
+                        db_data["child"][key]["product_description"]=product_description_src  
                     
                     if not bool(int(value.get("color_saved", 0))) and bool(int(value.get("verify_color", 0))):
                         
@@ -347,6 +338,10 @@ class SheinController():
                         
 
                         main_image_url=data.get('productIntroData',{}).get('detail',{}).get('original_img')
+                        print("Main image url",main_image_url)
+                        if main_image_url:
+                            if not main_image_url.startswith("http://") and not main_image_url.startswith("https://"):
+                                main_image_url = "http:" + main_image_url
                         db_data["child"][key]["main_image_url"]=main_image_url
                         list_images=data["productIntroData"]["goods_imgs"]["detail_image"]
                         hires_images = self.get_product_images_api_ctrl(qty_img,list_images)
@@ -376,7 +371,7 @@ class SheinController():
                                     if os.path.exists(result_path["temp_output"]):
                                         os.unlink(result_path["temp_output"])
                         del db_data["child"][key]["hires_images"]
-                        print("data\n",db_data["child"][key])
+                        #print("data\n",db_data["child"][key])
 
                     db_data["child"][key]["last_updated"] = current_time
                     db_data["child"][key]["searched_times"] = int(value["searched_times"]) + 1
@@ -393,6 +388,7 @@ class SheinController():
                            
                     parent=db_data["child"][key]
                     break
+            print("Paso el primer break")
             if variantes is not None:
                 for key,value in enumerate(db_data['child']):
                     for variante in variantes:
@@ -438,7 +434,10 @@ class SheinController():
                                     db_data["child"][key]["own_image"] = 1
                                     qty_img_c = self.image_product_limit()
                                     main_image_url_c = images_list_ch[0]["origin_image"].strip()
-
+                                    if main_image_url_c:
+                                        if not main_image_url_c.startswith("http://") and not main_image_url_c.startswith("https://"):
+                                            main_image_url_c = "http:" + main_image_url_c
+                                    print("en images lits child",main_image_url_c)
                                     db_data["child"][key]["main_image_url"] = main_image_url_c
 
                                     images_child =images_list_ch #[main_image_url_c]
@@ -448,9 +447,10 @@ class SheinController():
 
                                     main_img_url_c = asyncio.run(self.download_image(value["sku"],db_data["child"][key].get('main_image_url'),"main"))                            
                                     db_data["child"][key]["main_image_url"] = main_img_url_c['url']  if main_img_url_c["status"] else None
-
+                                    print("despues de main image url")
                                     resp_multi_img_c =  asyncio.run(self.download_multiple_images(value["sku"],db_data["child"][key].get('hires_images')))
                                     
+                                    print("despues de multple images dowload")
                                     if resp_multi_img_c:
                                         for kyc, url_val_c in enumerate(resp_multi_img_c):
                                                 key_value = url_val_c["name"]
@@ -460,6 +460,7 @@ class SheinController():
                                     if parent and "image_size_link" in parent and parent["image_size_link"]:
                                         name_child = value["sku"].lower().strip()
                                         ext_ch = Path(parent["image_size_link"]).suffix
+                                        print("EXT_CH",ext_ch)
                                         file_name_src = os.path.basename(parent["image_size_link"])
                                         
                                         resp_img_size =  asyncio.run(self.copy_file(parent["sku"], name_child, file_name_src ,ext_ch))
@@ -480,6 +481,8 @@ class SheinController():
                                         for prop in initial_img_val:
                                             if prop in parent:
                                                 db_data["child"][key][prop] = parent[prop]
+
+                            print("No entro en is exists file")
                             db_data["child"][key]["last_updated"] = current_time
                             db_data["child"][key]["searched_times"] = int(value["searched_times"]) + 1
 
@@ -489,9 +492,11 @@ class SheinController():
                                 db_data["child"][key]["searched_fail"] = int(value["searched_fail"]) + 1
                                 db_data["child"][key]["is_capture"] = 0
                                 db_data["child"][key]["stock"] = 0
+            print("antes de validate data")
             self.validate_data(index)
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
+            traceback.print_exc()
             return None
 
 
@@ -503,20 +508,25 @@ class SheinController():
             "error": None
         }
         try:
-            src_path = f"{self.images_path}/{sku.lower()}/{old_name}{extension}"
+            src_path = f"{self.images_path}/{sku.lower()}/{old_name}"
             dest_dir  = f"{self.images_path}/{new_name}"
+            # Verificar si el directorio de destino existe y, si no, crearlo
             if not os.path.exists(dest_dir):
+                print("Creando el directorio de destino")
                 os.makedirs(dest_dir)
+                
+            print("Después de verificar el directorio de destino")
 
-            dest_image_path = os.path.join(dest_dir, f"/{new_name}_size{extension}")
-
+            # Aquí quitamos el '/' extra al inicio del nombre del archivo
+            dest_image_path = os.path.join(dest_dir, f"{new_name}_size{extension}")
+            # Intentar copiar el archivo
             shutil.copy(src_path, dest_image_path)
 
             output_path = f"{self.domain_path}{new_name}/"
             image_url_domain = urljoin(output_path, f"{new_name}_size{extension}")
             result["success"] = True
             result["output_path"] = image_url_domain
-
+            print("RESULT",result)
             return result
         
         except Exception as e:
@@ -633,6 +643,10 @@ class SheinController():
     async def download_image(self,sku, image_link : str = None, file_name : str = None):
         try:
             image_url = self.sanitize_image_url(image_link)
+
+            if not image_url.startswith("http://") and not image_url.startswith("https://"):
+                image_url = "http:" + image_url  # Añadir http:// si no tiene esquema
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(image_url, timeout=None) as response:
                     if response.status == 200:
@@ -655,10 +669,18 @@ class SheinController():
                         return {"url": image_url, "status": "error", "message": f"Error al descargar thumbnail: {response.status}"}
             return {"url": "asdas", "status": True,"message":"success"}
         except asyncio.TimeoutError as e:
+            print(f"Error en dowload imgs 1 {str(e)}")
+            print(str(e))
+            print("despues del str e ")
+            traceback.print_exc()
             log_list = self.logger.bug_logs_data(e)
             resp = self.shn_proc.bug_register_proc(log_list)
             return {"url": image_url, "status": False, "message": "Timeout al descargar thumbnail"}
         except Exception as e:
+            print(f"Error en dowload imgs 2")
+            print(str(e))
+            print("despues del str e ")
+            traceback.print_exc()
             log_list = self.logger.bug_logs_data(e)
             resp = self.shn_proc.bug_register_proc(log_list)
             return {"url": image_url, "status": False, "message": f"Error inesperado al descargar thumbnail: {e}"}
@@ -841,8 +863,8 @@ class SheinController():
         converted_parts = []
         for part in parts:
             part = part.strip()
-           
-            if part.isnumeric() or (part.replace('.', '', 1).isdigit() and part.count('.') < 2):
+
+            if str(part).isnumeric() or (str(part).replace('.', '', 1).isdigit() and str(part).count('.') < 2):
                 cm_value = self.format_number_ctrl(self.inches_to_cm_ctrl(float(part)))
                 converted_parts.append(str(cm_value))
             else:
@@ -962,8 +984,8 @@ class SheinController():
 
         try:
                 
-            #config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
-            config = pdfkit.configuration(wkhtmltopdf='C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe')
+            config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
+            #config = pdfkit.configuration(wkhtmltopdf='C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe')
             options = {"quiet": ""}
 
             content_group = ""
@@ -1085,12 +1107,12 @@ class SheinController():
                 pdf_path = f"{self.images_path}/measure/output.pdf"
                 pdfkit.from_string(html_structure, pdf_path, configuration = config, options = options) #Genera PDF
                
-                #images = convert_from_path(pdf_path)  # Convertir PDF a imágenes
+                images = convert_from_path(pdf_path)  # Convertir PDF a imágenes
                 output_image_path = None
                 name_ext = "_size.png"
-                # for i, image in enumerate(images):
-                #     output_image_path = f"{self.images_path}/{sku}/{sku}{name_ext}"
-                #     image.save(output_image_path, "PNG")
+                for i, image in enumerate(images):
+                    output_image_path = f"{self.images_path}/{sku}/{sku}{name_ext}"
+                    image.save(output_image_path, "PNG")
              
             result["output_path"] = f"{self.domain_path}{sku}/{sku}{name_ext}"
             result["temp_output"] = f"{pdf_path}"
@@ -1110,8 +1132,14 @@ class SheinController():
 
 
 
-
     def bug_logs_data(self, e, severity="ERROR"):
+        try:
+            # Intentamos convertir el código de error, si está disponible
+            error_code = int(e.args[0]) if e.args and str(e.args[0]).isdigit() else 0
+        except (IndexError, ValueError) as error:
+            # Si no podemos acceder a e.args[0] o convertirlo a entero, asignamos 0
+            error_code = 0
+
         log_row = {
             "event_type": e.__class__.__name__,
             "log_description": str(e),
@@ -1121,7 +1149,7 @@ class SheinController():
             "request_url": self.get_request_url(),
             "http_method": self.get_http_method(),
             "user_agent": self.get_user_agent(),
-            "error_code": int(e.args[0]) if e.args and e.args[0].isdigit() else 0,
+            "error_code": error_code,
             "stack_trace": ''.join(traceback.format_exception(type(e), e, e.__traceback__)),
             "session_id": None
         }

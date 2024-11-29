@@ -1,3 +1,4 @@
+from models.entities.logs.bug_logger import BugLogger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -6,6 +7,7 @@ from contextlib import contextmanager
 from mysql.connector import Error
 import mysql.connector
 import json
+
 # Cargar las variables de entorno
 load_dotenv()
 
@@ -44,7 +46,7 @@ class DBConfigMySQL:
         self.DB_PASSWORD = os.getenv("DB_PASSWORD_TEST")
         self.DB_NAME = os.getenv("DB_NAME_TEST")
         self.connection = None
-        #self.logger = BugLogger()
+        self.logger = BugLogger()
 
     def connect(self):
         try:
@@ -60,7 +62,7 @@ class DBConfigMySQL:
                 return self.connection
         except Error as e:
             self.connection = None
-            #self.logger.log_error(f"Error al conectar a la base de datos: {e}")
+            self.logger.bug_logs_data(e)
 
     def disconnect(self):
         if self.connection is not None and self.connection.is_connected():

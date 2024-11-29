@@ -50,6 +50,13 @@ class BugLogger:
             return None
 
     def bug_logs_data(self, e, severity="ERROR"):
+        try:
+            # Intentamos convertir el código de error, si está disponible
+            error_code = int(e.args[0]) if e.args and str(e.args[0]).isdigit() else 0
+        except (IndexError, ValueError) as error:
+            # Si no podemos acceder a e.args[0] o convertirlo a entero, asignamos 0
+            error_code = 0
+
         log_row = {
             "event_type": e.__class__.__name__,
             "log_description": str(e),
@@ -59,7 +66,7 @@ class BugLogger:
             "request_url": self.get_request_url(),
             "http_method": self.get_http_method(),
             "user_agent": self.get_user_agent(),
-            "error_code": int(e.args[0]) if e.args and e.args[0].isdigit() else 0,
+            "error_code": error_code,
             "stack_trace": ''.join(traceback.format_exception(type(e), e, e.__traceback__)),
             "session_id": None
         }

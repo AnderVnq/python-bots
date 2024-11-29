@@ -15,7 +15,7 @@ class SheinProcessor:
         return response
     
     def bug_register_proc(self,log_list):
-        response = "data" #self.db.bug_register(log_list)
+        response =  self.db.bug_register(log_list)
         return response
     
 

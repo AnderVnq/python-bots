@@ -1,6 +1,7 @@
 from logging.handlers import RotatingFileHandler
 import os
 import logging 
+from config import Config
 from flask import Flask,send_from_directory,jsonify
 from flask_cors import CORS
 from routes.ripley_search import ripley_bp
@@ -13,6 +14,7 @@ from routes.shein_routes import shein_bp
 from _config.db_config import DBConfigSQLAlchemy
 from models.database_bots import Base, RankingProduct
 import sqlite3
+
 app = Flask(__name__)
 CORS(app)
 
@@ -20,7 +22,8 @@ db_congif = DBConfigSQLAlchemy()
 engine = db_congif.engine
 
 Base.metadata.create_all(engine)
-
+app.config.from_object(Config)
+app.config['UPLOAD_FOLDER'] = '/var/www/html/Public/Images'
 
 # conn = sqlite3.connect('sensores.db', check_same_thread=False)
 # cursor = conn.cursor()
@@ -72,17 +75,17 @@ if not app.debug:  # Solo habilitar logs avanzados si no está en modo debug
 
 
 
-# @app.route('/Public/Images/<path:filename>')
-# def serve_images(filename):
-#     images_path = Config.IMAGES_PATH #os.path.join(app.root_path, 'Public/Images')
-#     print(f"Attempting to serve from: {images_path}")  # Esto te ayudará a verificar la ruta
-#     return send_from_directory(images_path, filename)
+@app.route('/Public/Images/<path:filename>')
+def serve_images(filename):
+    images_path = Config.IMAGES_PATH #os.path.join(app.root_path, 'Public/Images')
+    print(f"Attempting to serve from: {images_path}")  # Esto te ayudará a verificar la ruta
+    return send_from_directory(images_path, filename)
 
-# @app.route('/Public/docs/<path:filename>')
-# def serve_docs(filename):
-#     docs_path = Config.DOCS_PATH #os.path.join(app.root_path, 'Public/docs')
-#     print(f"Attempting to serve from: {docs_path}")  # Esto te ayudará a verificar la ruta
-#     return send_from_directory(docs_path, filename)
+@app.route('/Public/docs/<path:filename>')
+def serve_docs(filename):
+    docs_path = Config.DOCS_PATH #os.path.join(app.root_path, 'Public/docs')
+    print(f"Attempting to serve from: {docs_path}")  # Esto te ayudará a verificar la ruta
+    return send_from_directory(docs_path, filename)
 
 @app.route('/')
 def hello():
