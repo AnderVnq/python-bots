@@ -87,12 +87,12 @@ class SheinController():
             opts.add_argument(f'User-agent={headers["User-Agent"]}')
 
             # Intenta conectarte al servidor de Selenium
-            # driver= webdriver.Remote(
-            #     command_executor=selenium_url,
-            #     options=opts
-            # )
+            driver= webdriver.Remote(
+                command_executor=selenium_url,
+                options=opts
+            )
 
-            driver= webdriver.Chrome(options=opts)
+            #driver= webdriver.Chrome(options=opts)
             return driver
 
 
@@ -1302,7 +1302,7 @@ class SheinController():
                     if sku["sku_sale_attr"]:
                         child_size.append({
                             "uuid": None,
-                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
+                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip() if data["sku"] else current_product_sku+sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
                             "sku_code": sku["sku_code"].strip(),
                             "variant_id": data["variant_id"].strip(),
                             "category": data["category"],
@@ -1330,10 +1330,10 @@ class SheinController():
                             "searched_fail": 0,
                             "fail_times": 0
                         })
-                r_db=True #self.set_product_detail(index,"child_size",child_size)
+                r_db=self.set_product_detail(index,"child_size",child_size)
                 if r_db:
                     response_data["is_found"]=True
-                    print(child_size)
+                    print("variantes size=",r_db)
                   #set_Data 
                 #self.set_product_detail(index,"child_size",child_size)
                   #nose como se hará pero debo preguntar 
@@ -1379,10 +1379,10 @@ class SheinController():
                                 "searched_fail" : 0,
                                 "fail_times" : 0
                             })
-                    r_db=True#self.set_product_detail(index,"child_color_var",color_variantes)
-                    if r_db:
+                    r_db_c=self.set_product_detail(index,"child_color_var",color_variantes)
+                    if r_db_c:
                         response_data["is_found"]=True
-                        print(color_variantes)
+                        print("variantes_color=",r_db_c)
             return response_data
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
