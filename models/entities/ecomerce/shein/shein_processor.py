@@ -19,8 +19,14 @@ class SheinProcessor:
         return response
     
 
+    def get_data_for_variantes_proc(self, platform : str, vps : str):
+        data_sku = self.db.get_shein_stract_variations(platform,vps)
+        return data_sku
 
 
 
+    def update_data_for_variantes_proc(self,data):           
+        response = self.db.update_shein_sku_variantes_list_dbcf(data)
+        return response
 
 
