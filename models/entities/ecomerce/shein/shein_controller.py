@@ -50,6 +50,7 @@ class SheinController():
         self.images_path = os.getenv('IMAGES_PATH')
         self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
+        self.is_found=None
  
     def init_driver(self):
             """ Inicializa el WebDriver con las opciones deseadas """
@@ -86,12 +87,12 @@ class SheinController():
             opts.add_argument(f'User-agent={headers["User-Agent"]}')
 
             # Intenta conectarte al servidor de Selenium
-            driver= webdriver.Remote(
-                command_executor=selenium_url,
-                options=opts
-            )
+            # driver= webdriver.Remote(
+            #     command_executor=selenium_url,
+            #     options=opts
+            # )
 
-            #driver= webdriver.Chrome(options=opts)
+            driver= webdriver.Chrome(options=opts)
             return driver
 
 
@@ -111,9 +112,35 @@ class SheinController():
 
     
 
+    def get_data_for_variant(self,platform:str='Shein',from_app:str='vps1'):
+        response =  self.shn_proc.get_data_for_variantes_proc(platform,from_app)
+        if response:
+            self.set_sku_data_list(response)
+        self.update_variante_list()
+
+    def is_found_data(self):
+        return self.is_found
+        
+    def update_variante_list(self):
+        #self.sku_data=None
+        sku_list= self.get_sku_data_list()
+        #self.affected_rows = 0
+        if not sku_list:
+            return
+        self.lenght_sku_list = len(sku_list)
+        try:
+            for index,data in enumerate(sku_list):
+                url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
+                self.driver.get(url)
+                self.extract_variantes(index)
+            self.sku_data=None
+        except Exception as e:
+            print(f"Error al actualizar los datos: {str(e)}")
+            return None
 
     def update_data_sku_price(self):
         sku_list= self.get_sku_data_list()
+        #self.affected_rows = 0
         if not sku_list:
             return
         self.lenght_sku_list = len(sku_list)
@@ -121,12 +148,13 @@ class SheinController():
 
             for index,data in enumerate(sku_list):
 
-                #if data.get("product_id", None).strip() and bool(int(data.get("is_parent", False))):
-                url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
-                self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
-                self.driver.get(url)
-                self.extract_info(index)
-                self.url_complete=None
+                if data.get("product_id", None).strip() and bool(int(data.get("is_parent", False))):
+                    url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
+                    self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
+                    self.driver.get(url)
+                    self.extract_info(index)
+                    self.url_complete=None
+            self.sku_data=None
         except Exception as e:
             print(f"Error al actualizar los datos: {str(e)}")
             return None
@@ -185,6 +213,7 @@ class SheinController():
                 self.structure_data(response_json,index)
             else:
                 print("Error al extraer la información")
+            self.soup=None
         except Exception as e:
             print(e)
             print("Error al cargar la página")
@@ -1157,3 +1186,217 @@ class SheinController():
         log_list = [log_row]
 
         return json.dumps(log_list)
+    
+
+
+
+
+
+
+
+    def extract_variantes(self,index:int):
+        
+        self.driver.implicitly_wait(5)
+        try:
+            WebDriverWait(self.driver, 10).until(
+                lambda d: "captcha" not in d.current_url
+            )
+            print("Acceso al producto exitoso:", self.driver.current_url)
+        except:
+            print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
+
+        # Si se logra salir del CAPTCHA, continuar con el scraping
+        if "captcha" not in self.driver.current_url:
+            print("Página del producto lista para el scraping.")
+            #self.driver.get(self.url_base_usa+f"/product-p-{data['product_id']}.html")    
+        else:
+            print("Permaneciendo en la página del CAPTCHA.")
+        try:
+            self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            response_json=self.extract_data_soup()
+            if response_json:
+                print("Información extraída con éxito")
+                response_variantes=self.extract_variant(index,response_json)
+                if response_variantes["is_found"]:
+                    self.is_found=True
+                else:
+                    self.is_found=False
+            else:
+                print("Error al extraer la información")
+            self.soup=None
+        except Exception as e:
+            print(e)
+            print("Error al cargar la página")
+            #self.product_data_not_found_api_ctrl(index)
+
+
+
+
+
+
+
+    def extract_variant(self,index:int,data_response):
+
+        data=self.sku_data[index]
+        response_data={"is_found":False}
+        last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            current_product_id=data_response["currentGoodsId"]
+            current_product_sku=data_response["currentGoodsSn"]
+            current_product_color=data_response["productIntroData"]["detail"]["mainSaleAttribute"][0]["attr_value"]
+
+            price_src=data_response.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
+
+            price=price_src if price_src else None
+
+            try:
+                quantity = data_response.get('productIntroData', {}).get('detail', {}).get('stock')
+                if quantity is not None and str(quantity).isdigit():
+                    quantity = int(quantity)
+                else:
+                    quantity = None
+                in_stock = 1 if quantity and quantity > 0 else 0
+            except Exception as e:
+                print(f"Error al procesar los datos: {e}")
+                quantity = None
+                in_stock = 0
+
+            
+
+            sku_list=data_response.get("productIntroData",{}).get("attrSizeList",{}).get("sale_attr_list").get(data["product_id"],{}).get("sku_list",[])
+
+            if sku_list:  # Main sku
+                child_size = [{
+                    "uuid": data["uuid"],
+                    "sku": data["sku"].strip() if data["sku"] else current_product_sku,
+                    "sku_code": None,
+                    "variant_id": data["variant_id"].strip(),
+                    "category": data["category"],
+                    "subcategory": data["subcategory"],
+                    "product_type": data["product_type"],
+                    "product_name": data["product_name"],
+                    "platform": data["platform"],
+                    "product_id": data["product_id"].strip(),
+                    "short_desc_cf": data["short_desc_cf"],
+                    "category_cf": data["category_cf"],
+                    "category_label": data["category_label"],
+                    "brand": data["brand"],
+                    "is_parent": 1,
+                    "is_child": 0,
+                    "is_active": 0,
+                    "stock": in_stock,
+                    "quantity": quantity,
+                    "original_price": price,
+                    "last_updated": last_updated,
+                    "color": current_product_color,
+                    "use_product_url": 1,
+                    "product_url": data["product_url"],
+                    "is_capture": 1,
+                    "searched_times": int(data["searched_times"]) + 1 if data["searched_times"] is not None else 1,
+                    "searched_fail": int(data["searched_times"]),
+                    "fail_times": int(data["searched_times"])
+                }]
+
+                for sku in sku_list:
+                    if sku["sku_sale_attr"]:
+                        child_size.append({
+                            "uuid": None,
+                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
+                            "sku_code": sku["sku_code"].strip(),
+                            "variant_id": data["variant_id"].strip(),
+                            "category": data["category"],
+                            "subcategory": data["subcategory"],
+                            "product_type": data["product_type"],
+                            "product_name": data["product_name"],
+                            "platform": data["platform"],
+                            "product_id": data["product_id"].strip(),
+                            "short_desc_cf": data["short_desc_cf"],
+                            "category_cf": data["category_cf"],
+                            "category_label": data["category_label"],
+                            "brand": data["brand"],
+                            "is_parent": 0,
+                            "is_child": 1,
+                            "is_active": 0,
+                            "stock": 1 if sku["stock"] >=3 else 0,
+                            "quantity": sku["stock"],
+                            "original_price": price,
+                            "last_updated":last_updated,
+                            "color": current_product_color,
+                            "use_product_url": 0,
+                            "product_url": None,
+                            "is_capture": 1,
+                            "searched_times": 1,
+                            "searched_fail": 0,
+                            "fail_times": 0
+                        })
+                r_db=True #self.set_product_detail(index,"child_size",child_size)
+                if r_db:
+                    response_data["is_found"]=True
+                    print(child_size)
+                  #set_Data 
+                #self.set_product_detail(index,"child_size",child_size)
+                  #nose como se hará pero debo preguntar 
+            #variantes color 
+            
+
+            if bool(int(data["is_parent"])) and not bool(int(data["is_child"])):
+
+                data_db=self.sku_data[index]
+
+                variantes_color=data_response.get("productIntroData",{}).get("relation_color",[])
+                if variantes_color:
+                    color_variantes=[]
+                    for color in variantes_color:
+                        if str(data_db["product_id"]) != str(color["goods_id"]) and str(data_db["sku"]) != str(color["goods_sn"]):
+                            color_variantes.append({
+                                "uuid": None,
+                                "sku": color["goods_sn"],
+                                "sku_code": None,
+                                "variant_id": data_db["variant_id"].strip(),
+                                "category": data_db["category"],
+                                "subcategory": data_db["subcategory"],
+                                "product_type": data_db["product_type"],
+                                "product_name": data_db["product_name"],
+                                "platform": data_db["platform"],
+                                "product_id": color["goods_id"],
+                                "short_desc_cf": data_db["short_desc_cf"],
+                                "category_cf": data_db["category_cf"],
+                                "category_label": data_db["category_label"],
+                                "brand": data_db["brand"],
+                                "is_parent": 1,
+                                "is_child": 1,
+                                "is_active": 1,
+                                "stock": data_db["stock"],
+                                "quantity": data_db["quantity"],
+                                "original_price": data_db["original_price"],
+                                "last_updated": last_updated,
+                                "color": color["mainSaleAttribute"][0]["attr_value"],
+                                "use_product_url": 0,
+                                "product_url": None,
+                                "is_capture": 1,
+                                "searched_times" : 1,
+                                "searched_fail" : 0,
+                                "fail_times" : 0
+                            })
+                    r_db=True#self.set_product_detail(index,"child_color_var",color_variantes)
+                    if r_db:
+                        response_data["is_found"]=True
+                        print(color_variantes)
+            return response_data
+        except Exception as e:
+            print(f"Error al estructurar los datos: {str(e)}")
+            traceback.print_exc()
+            return response_data
+
+    def set_product_detail(self,index,key,data):
+        try:
+            #data_db=self.sku_data[index]
+            data_db=data
+            #self.sku_data[index]=data_db
+            res=self.shn_proc.update_data_for_variantes_proc(data_db)
+            return res
+        except Exception as e:
+            print(f"Error al estructurar los datos: {str(e)}")
+            traceback.print_exc()
+            return None
