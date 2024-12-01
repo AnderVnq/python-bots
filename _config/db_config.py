@@ -1,3 +1,4 @@
+import traceback
 from models.entities.logs.bug_logger import BugLogger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -88,6 +89,37 @@ class DBConfigMySQL:
                 self.disconnect()
 
 
+    def get_shein_stract_variations(self,platform:str, vps: str = 'vps1'):
+        sp_name= f"SP_SkuVariationListToUpdate"
+        try:
+            connection = self.connect()
+            with connection.cursor() as cursor:
+                cursor.execute("SET @result = '';")
+                cursor.execute(f"CALL {sp_name}(%s,%s, @result);", (platform,vps,))
+                cursor.execute("SELECT @result;")
+                result = cursor.fetchone()[0]
+                json_data = json.loads(result) if result else []
+                return json_data
+        except Exception as e:
+            return []
+        finally:
+            self.disconnect()
+
+
+    def update_shein_sku_variantes_list_dbcf(self,data):
+        sp_name = f"SP_VariationSKU_Extract_Update"
+        try:
+            connection = self.connect()
+            connection.autocommit = True
+            data_json = json.dumps(data)
+            with connection.cursor() as cursor:
+                cursor.execute(f"CALL {sp_name}(%s);", (data_json,))
+            return True
+        except Error as e:
+            traceback.print_exc()
+            return None
+        finally:
+            self.disconnect()
 
 
     def massive_update_model(self, table, data, id_field='uuid', batch_size = 100):
