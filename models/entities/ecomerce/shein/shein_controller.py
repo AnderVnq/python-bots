@@ -87,12 +87,12 @@ class SheinController():
             opts.add_argument(f'User-agent={headers["User-Agent"]}')
 
             # Intenta conectarte al servidor de Selenium
-            # driver= webdriver.Remote(
-            #     command_executor=selenium_url,
-            #     options=opts
-            # )
+            driver= webdriver.Remote(
+                command_executor=selenium_url,
+                options=opts
+            )
 
-            driver= webdriver.Chrome(options=opts)
+            #driver= webdriver.Chrome(options=opts)
             return driver
 
 
@@ -1381,9 +1381,9 @@ class SheinController():
                                 "fail_times" : 0
                             })
                     r_db_c=self.set_product_detail(index,"child_color_var",color_variantes)
-                    if r_db:
+                    if r_db_c:
                         response_data["is_found"]=True
-                        print("variantes color=",r_db_c)
+                        print("variantes_color=",r_db_c)
             return response_data
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
