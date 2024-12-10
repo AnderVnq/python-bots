@@ -318,7 +318,7 @@ class SheinController():
             print("En structure data")
             for key,value in enumerate(db_data["child"]):
                 
-                compare_sku=value.get("sku").strip().upper()
+                compare_sku= value.get("sku").strip().upper() if value else None
                 
                 if(compare_sku==product_id) or (compare_sku==goods_sn):
                     
@@ -1267,7 +1267,8 @@ class SheinController():
             sku_list=data_response.get("productIntroData",{}).get("attrSizeList",{}).get("sale_attr_list").get(data["product_id"],{}).get("sku_list",[])
 
             if sku_list:  # Main sku
-                child_size = [{
+                child_size = []
+                child_size.append({
                     "uuid": data["uuid"],
                     "sku": data["sku"].strip() if data["sku"] else current_product_sku,
                     "sku_code": None,
@@ -1296,13 +1297,13 @@ class SheinController():
                     "searched_times": int(data["searched_times"]) + 1 if data["searched_times"] is not None else 1,
                     "searched_fail": int(data["searched_times"]),
                     "fail_times": int(data["searched_times"])
-                }]
+                })
 
                 for sku in sku_list:
                     if sku["sku_sale_attr"]:
                         child_size.append({
                             "uuid": None,
-                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
+                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip() if data["sku"] else current_product_sku+sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
                             "sku_code": sku["sku_code"].strip(),
                             "variant_id": data["variant_id"].strip(),
                             "category": data["category"],
@@ -1330,10 +1331,10 @@ class SheinController():
                             "searched_fail": 0,
                             "fail_times": 0
                         })
-                r_db=True #self.set_product_detail(index,"child_size",child_size)
+                r_db=self.set_product_detail(index,"child_size",child_size)
                 if r_db:
                     response_data["is_found"]=True
-                    print(child_size)
+                    print("variantes size=",r_db)
                   #set_Data 
                 #self.set_product_detail(index,"child_size",child_size)
                   #nose como se hará pero debo preguntar 
@@ -1379,10 +1380,10 @@ class SheinController():
                                 "searched_fail" : 0,
                                 "fail_times" : 0
                             })
-                    r_db=True#self.set_product_detail(index,"child_color_var",color_variantes)
+                    r_db_c=self.set_product_detail(index,"child_color_var",color_variantes)
                     if r_db:
                         response_data["is_found"]=True
-                        print(color_variantes)
+                        print("variantes color=",r_db_c)
             return response_data
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")

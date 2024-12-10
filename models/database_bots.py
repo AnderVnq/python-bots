@@ -60,6 +60,7 @@ class RankingProduct(Base):
         config=DBConfigSQLAlchemy()
         with config.get_db_session() as session:
             ranking=session.query(cls).filter(cls.id == id).first()
+            
             return ranking.to_dict()
     
     @classmethod
