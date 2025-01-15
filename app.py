@@ -116,8 +116,8 @@ def internal_server_error(e):
     return jsonify(response), 500
 
 
-# if __name__ == "__main__":
-#     app.run(debug=True)
+if __name__ == "__main__":
+    app.run(debug=True)
 
 
 
