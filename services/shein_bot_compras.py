@@ -43,7 +43,7 @@ class SheinBotCompras():
         }
         selenium_url = 'http://selenium:4444/wd/hub'
         opts = Options()
-        #opts.add_argument("--headless") 
+        #opts.add_argument("--headless") z
         opts.add_argument("--start-maximized")
         opts.add_argument("--disable-notifications")
         #opts.add_argument("--lang=" + self.language)
@@ -66,11 +66,11 @@ class SheinBotCompras():
         opts.add_argument("--ignore-certificate-errors")
         opts.add_argument(f'User-agent={headers["User-Agent"]}')
         # Intenta conectarte al servidor de Selenium
-        # driver= webdriver.Remote(
-        #     command_executor=selenium_url,
-        #     options=opts
-        # )
-        driver= webdriver.Chrome(options=opts)
+        driver= webdriver.Remote(
+            command_executor=selenium_url,
+            options=opts
+        )
+        #driver= webdriver.Chrome(options=opts)
         return driver
     
     def affected_data(self):
@@ -84,7 +84,7 @@ class SheinBotCompras():
 
     def get_data_process(self,platform:str='Shein',from_app:str='vps1'):
         #response =  self.shn_proc.get_data_for_variantes_proc(platform,from_app)
-        response=[{"product_id":"32087618","is_parent":True,'price':53.49,'color':'multicolor','size':'S','quantity':3}]
+        response=[{"product_id":"18693230","is_parent":True,'price':53.49,'color':'multicolor','size':'S','quantity':3}]
         if response:
             self.set_sku_data_list(response)
         self.process_skus_data()
@@ -102,11 +102,12 @@ class SheinBotCompras():
         try:
 
             for index,data in enumerate(sku_list):
-
+                print(f"Procesando SKU {index+1} - {data['product_id']}")
                 if data.get("product_id", None).strip(): #and bool(int(data.get("is_parent", False))):
+                    # url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
+                    # self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
                     url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
-                    self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
-                    self.driver.get(self.url_complete)
+                    self.driver.get(url)
                     self.automatizacion(index)
                     self.url_complete=None
             self.sku_data=None
@@ -119,6 +120,52 @@ class SheinBotCompras():
     def get_sku_data_list(self):
         return  self.sku_data
 
+
+
+    def handle_captcha(self):
+        """Función para manejar la detección y resolución del captcha"""
+        try:
+            WebDriverWait(self.driver, 10).until(
+                lambda d: "captcha" not in d.current_url
+            )
+            print("Acceso al producto exitoso:", self.driver.current_url)
+
+        except:
+            print(self.driver.current_url)
+            print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
+            time.sleep(3)
+            print("Recargando la página para intentar resolver el captcha automáticamente...",self.driver.current_url)
+            # Cambiar el User-Agent
+            new_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            opts = Options()
+            opts.add_argument(f"user-agent={new_user_agent}")
+            
+            # Reiniciar el driver con el nuevo User-Agent
+            self.driver.quit()  # Cerrar el driver actual
+            self.driver = webdriver.Remote(
+                command_executor='http://selenium:4444/wd/hub',
+                options=opts
+            )  # Crear un nuevo driver con el User-Agent cambiado
+
+            # Recargar la página
+            self.driver.get(self.driver.current_url)  # Volver a cargar la misma página con el nuevo User-Agent
+            print("Página recargada con nuevo User-Agent.")
+
+            # Volver a ejecutar la verificación del captcha
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda d: "captcha" not in d.current_url
+                )
+                print("Acceso al producto exitoso después de recargar:", self.driver.current_url)
+
+            except:
+                print(self.driver.current_url)
+                print("Captcha aún no resuelto, por favor resuélvelo manualmente.")
+
+
+
+
+
     def automatizacion(self,index):
 
         current_sku=self.sku_data[index]
@@ -129,6 +176,9 @@ class SheinBotCompras():
             )
             print("Acceso al producto exitoso:", self.driver.current_url)
         except:
+            print(self.driver.current_url)
+
+            self.handle_captcha()
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
 
         self.cerrar_modalV2()
@@ -327,9 +377,13 @@ class SheinBotCompras():
     def validate_size(self,size):
 
         try:
-
+            print("dentro de validar talla")
             container = self.driver.find_element(By.XPATH, '//div[@class="product-intro__size-choose"]')
+            print(container.get_attribute("outerHTML"))
             sizes = container.find_elements(By.XPATH, './/span') 
+
+            for s in sizes:
+                print(f"Talla encontrada: {s.text}")
 
             for s in sizes:
                 if s.text == size:
@@ -349,6 +403,7 @@ class SheinBotCompras():
                 EC.element_to_be_clickable((By.XPATH,'//div[@class="quickg-outside"]'))
             )
             close_button.click()
+            print("Banner de registro rápido cerrado con éxito.")
             return True
         except Exception as e:
             print("No se encontró el banner de registro rápido")
