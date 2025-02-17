@@ -177,7 +177,8 @@ class SheinController():
     
     def extract_info(self,index:int):    
         self.driver.implicitly_wait(5)
-        #self.driver.get(self.url_complete) 
+        #self.driver.get(self.url_complete)
+        data = self.sku_data[index] 
         try:
             WebDriverWait(self.driver, 10).until(
                 lambda d: "captcha" not in d.current_url
@@ -185,13 +186,17 @@ class SheinController():
             print("Acceso al producto exitoso:", self.driver.current_url)
         except:
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
+            self.driver.get("https://us.shein.com/login")
 
         # Si se logra salir del CAPTCHA, continuar con el scraping
+        self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es") 
+
+        print(self.driver.current_url)   
         if "captcha" not in self.driver.current_url:
             print("Página del producto lista para el scraping.")
-            #self.driver.get(self.url_base_usa+f"/product-p-{data['product_id']}.html")    
         else:
             print("Permaneciendo en la página del CAPTCHA.")
+            return
         try:
             # modal_is_closed = self.close_modal()
             # if modal_is_closed:
@@ -212,7 +217,7 @@ class SheinController():
                 print("Información extraída con éxito")
                 self.structure_data(response_json,index)
             else:
-                print("Error al extraer la información")
+                print("Error al extraer la información en extract_info")
             self.soup=None
         except Exception as e:
             print(e)
@@ -273,7 +278,7 @@ class SheinController():
                             return None
             return None
         except Exception as e:
-            print(f"Error al extraer la información del producto")
+            print(f"Error al extraer la información del producto en data_soup")
             return None
 
     def close_banner(self):
@@ -1197,6 +1202,7 @@ class SheinController():
     def extract_variantes(self,index:int):
         
         self.driver.implicitly_wait(5)
+        data=self.sku_data[index]
         try:
             WebDriverWait(self.driver, 10).until(
                 lambda d: "captcha" not in d.current_url
@@ -1204,13 +1210,19 @@ class SheinController():
             print("Acceso al producto exitoso:", self.driver.current_url)
         except:
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
+            self.driver.get("https://us.shein.com/login")
 
         # Si se logra salir del CAPTCHA, continuar con el scraping
+
+        self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es") 
+
+        print(self.driver.current_url)   
         if "captcha" not in self.driver.current_url:
             print("Página del producto lista para el scraping.")
             #self.driver.get(self.url_base_usa+f"/product-p-{data['product_id']}.html")    
         else:
             print("Permaneciendo en la página del CAPTCHA.")
+            return
         try:
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             response_json=self.extract_data_soup()
@@ -1222,7 +1234,7 @@ class SheinController():
                 else:
                     self.is_found=False
             else:
-                print("Error al extraer la información")
+                print("Error al extraer la información en extract_variantes")
             self.soup=None
         except Exception as e:
             print(e)
