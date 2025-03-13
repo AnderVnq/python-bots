@@ -36,7 +36,7 @@ class SheinController():
     def __init__(self, language='en_US'):
         self.language = language
         self.driver = self.init_driver()
-        self.url_base = "https://www.shein.com/"
+        self.url_base = "https://us.shein.com/"
         self.url_base_usa="https://us.shein.com/"
         self.soup = None
         self.shn_proc = SheinProcessor()
@@ -87,12 +87,12 @@ class SheinController():
             opts.add_argument(f'User-agent={headers["User-Agent"]}')
 
             # Intenta conectarte al servidor de Selenium
-            driver= webdriver.Remote(
-                command_executor=selenium_url,
-                options=opts
-            )
+            # driver= webdriver.Remote(
+            #     command_executor=selenium_url,
+            #     options=opts
+            # )
 
-            #driver= webdriver.Chrome(options=opts)
+            driver= webdriver.Chrome(options=opts)
             return driver
 
 
@@ -428,7 +428,9 @@ class SheinController():
                     for variante in variantes:
                         if value["sku_code"] == variante["sku_code"]:
                             if not bool(int(value["size_saved"])) and bool(int(value["verify_size"])):
+                                print("entro a size")
                                 size_src=variante["sku_sale_attr"][0]["attr_value_name_en"]
+                                print("talla",size_src)
                                 db_data["child"][key]["size"]=size_src.strip().upper()
 
                             price_src_temp=price
@@ -573,21 +575,25 @@ class SheinController():
 
     def validate_data(self,index:int):
         data = self.sku_data[index]
-        self.lenght_sku_list = len(data["child"])        
+        self.lenght_sku_list = len(self.sku_data)        
         for indx, val_dic in enumerate(data["child"]):
-            data["child"][indx]["weight_saved"] = self.is_valid_proper(val_dic,"weight_in_kg")
-            data["child"][indx]["is_exist_file"] = self.is_valid_images(val_dic)
-            data["child"][indx]["product_name_saved"] = self.is_valid_proper(val_dic,"product_name")
-            data["child"][indx]["description_saved"] = self.is_valid_proper(val_dic,"product_description")
-            data["child"][indx]["brand_saved"] = self.is_valid_proper(val_dic,"brand")
-            data["child"][indx]["dimension_saved"] = self.is_valid_dimension(val_dic)
-            data["child"][indx]["size_saved"] = self.is_valid_proper(val_dic,"size")
-            data["child"][indx]["color_saved"] = self.is_valid_proper(val_dic,"color")   
-            data["child"][indx]["is_active"] = 0   
-            data["child"][indx]["extraction"] = 0
-            self.sku_detail.append(data["child"][indx]) 
-            self.updated_rows(1)
-            self.batching_data(indx) 
+             data["child"][indx]["weight_saved"] = self.is_valid_proper(val_dic,"weight_in_kg")
+             data["child"][indx]["is_exist_file"] = self.is_valid_images(val_dic)
+             data["child"][indx]["product_name_saved"] = self.is_valid_proper(val_dic,"product_name")
+             data["child"][indx]["description_saved"] = self.is_valid_proper(val_dic,"product_description")
+             data["child"][indx]["brand_saved"] = self.is_valid_proper(val_dic,"brand")
+             data["child"][indx]["dimension_saved"] = self.is_valid_dimension(val_dic)
+             data["child"][indx]["size_saved"] = self.is_valid_proper(val_dic,"size")
+             data["child"][indx]["color_saved"] = self.is_valid_proper(val_dic,"color")   
+             data["child"][indx]["is_active"] = 0   
+             data["child"][indx]["extraction"] = 0
+             data["child"][indx]["processing"] = 0
+             data["child"][indx]["process_app"] = None
+             data["child"][indx]["from_app"] = self.on_device_process
+             self.sku_detail.append(data["child"][indx])
+             self.updated_rows(1)
+        self.sku_data[index] = None
+        self.batching_data(index) 
 
 
 
@@ -598,13 +604,10 @@ class SheinController():
         return 0
 
 
-
     def batching_data(self, index : int):
         if (index + 1) % self.batch_size == 0 or index + 1 == self.lenght_sku_list:
-            result = self.shn_proc.update_shein_sku_list_proc(self.sku_detail,self.batch_size)
-            self.affected_rows = result
+            self.shn_proc.update_shein_sku_list_proc(self.sku_detail,self.batch_size)
             self.sku_detail = []
-
 
 
     def is_valid_images(self,data):
@@ -771,23 +774,27 @@ class SheinController():
         return image_props
     
 
-    def set_product_description_ctrl(self):
-
-
+    def set_product_description_ctrl(self,atributes):
         # se hace con el html de la pagina 
         try:
-            description_table = self.soup.select_one('.product-intro__description-table')
-            if description_table:
-                ul = '<ul>'
-                items = description_table.select('.product-intro__description-table-item')
-                for item in items:
-                    key = item.select_one('.key').get_text(strip=True)
-                    val = item.select_one('.val').get_text(strip=True)
-                    ul += f'<li>{key} {val}</li>'
-                ul += '</ul>'
+
+            ul='<ul>'
+            agrupar_data=defaultdict(list)
+
+            for  atr in atributes:
+                key= atr["attr_name"]
+                value=atr["attr_value"]
+                agrupar_data[key].append(value)
+
+            
+            for ky,values in agrupar_data.items():
+                ul+=f'<li>{ky}: {", ".join(values)}</li>'
+
+            ul+'</ul>'
+            
             return ul
         except Exception as e:
-            print(f"Error al actualizar los datos: {str(e)}")
+            print(f"Error en product description (ul): {str(e)}")
             return None
 
 
@@ -1247,160 +1254,265 @@ class SheinController():
 
 
 
-    def extract_variant(self,index:int,data_response):
+    def extract_variant(self,index:int,data_sku_soup):
 
         data=self.sku_data[index]
         response_data={"is_found":False}
         last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        parent={}
         
         try:
-            current_product_id=data_response["currentGoodsId"]
-            current_product_sku=data_response["currentGoodsSn"]
-            current_product_color=data_response["productIntroData"]["detail"]["mainSaleAttribute"][0]["attr_value"]
-
-            price_src=data_response.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
+            current_product_id=data_sku_soup["currentGoodsId"]
+            current_product_sku=data_sku_soup["currentGoodsSn"]
+            current_product_color=data_sku_soup["productIntroData"]["detail"]["mainSaleAttribute"][0]["attr_value"]
+            current_time=self.current_time()
+            price_src=data_sku_soup.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
 
             price=price_src if price_src else None
 
-            try:
-                quantity = data_response.get('productIntroData', {}).get('detail', {}).get('stock')
-                if quantity is not None and str(quantity).isdigit():
-                    quantity = int(quantity)
-                else:
-                    quantity = None
-                in_stock = 1 if quantity and quantity > 0 else 0
-            except Exception as e:
-                print(f"Error al procesar los datos: {e}")
-                quantity = None
-                in_stock = 0
-
+            sku_list=data_sku_soup.get("productIntroData",{}).get("attrSizeList",{}).get("sale_attr_list").get(data["product_id"],{}).get("sku_list",[])
+            
             
 
-            sku_list=data_response.get("productIntroData",{}).get("attrSizeList",{}).get("sale_attr_list").get(data["product_id"],{}).get("sku_list",[])
+            for key,value in enumerate(data['child']):
+                compare_sku=value["sku"].strip().upper()
+                if(compare_sku==current_product_sku) or (compare_sku==current_product_id):
 
-            if sku_list:  # Main sku
-                child_size = []
-                child_size.append({
-                    "uuid": data["uuid"],
-                    "sku": data["sku"].strip() if data["sku"] else current_product_sku,
-                    "sku_code": None,
-                    "variant_id": data["variant_id"].strip(),
-                    "category": data["category"],
-                    "subcategory": data["subcategory"],
-                    "product_type": data["product_type"],
-                    "product_name": data["product_name"],
-                    "platform": data["platform"],
-                    "product_id": data["product_id"].strip(),
-                    "short_desc_cf": data["short_desc_cf"],
-                    "category_cf": data["category_cf"],
-                    "category_label": data["category_label"],
-                    "brand": data["brand"],
-                    "is_parent": 1,
-                    "is_child": 0,
-                    "is_active": 0,
-                    "stock": in_stock,
-                    "quantity": quantity,
-                    "original_price": price,
-                    "last_updated": last_updated,
-                    "color": current_product_color,
-                    "use_product_url": 1,
-                    "product_url": data["product_url"],
-                    "is_capture": 1,
-                    "searched_times": int(data["searched_times"]) + 1 if data["searched_times"] is not None else 1,
-                    "searched_fail": int(data["searched_times"]),
-                    "fail_times": int(data["searched_times"])
-                })
+                    try:
+                        quantity = data_sku_soup.get('productIntroData', {}).get('detail', {}).get('stock')
+                        if quantity is not None and str(quantity).isdigit():
+                            quantity = int(quantity)
+                        else:
+                            quantity = None
+                        in_stock = 1 if quantity and quantity > 0 else 0
+                    except Exception as e:
+                        print(f"Error en price y  quantity: {e}")
+                        quantity = None
+                        in_stock = 0
 
-                for sku in sku_list:
-                    if sku["sku_sale_attr"]:
-                        child_size.append({
-                            "uuid": None,
-                            "sku": data["sku"].strip() + sku["sku_sale_attr"][0]["attr_value_name_en"].strip() if data["sku"] else current_product_sku+sku["sku_sale_attr"][0]["attr_value_name_en"].strip(),
-                            "sku_code": sku["sku_code"].strip(),
-                            "variant_id": data["variant_id"].strip(),
-                            "category": data["category"],
-                            "subcategory": data["subcategory"],
-                            "product_type": data["product_type"],
-                            "product_name": data["product_name"],
-                            "platform": data["platform"],
-                            "product_id": data["product_id"].strip(),
-                            "short_desc_cf": data["short_desc_cf"],
-                            "category_cf": data["category_cf"],
-                            "category_label": data["category_label"],
-                            "brand": data["brand"],
-                            "is_parent": 0,
-                            "is_child": 1,
-                            "is_active": 0,
-                            "stock": 1 if sku["stock"] >=3 else 0,
-                            "quantity": sku["stock"],
-                            "original_price": price,
-                            "last_updated":last_updated,
-                            "color": current_product_color,
-                            "use_product_url": 0,
-                            "product_url": None,
-                            "is_capture": 1,
-                            "searched_times": 1,
-                            "searched_fail": 0,
-                            "fail_times": 0
-                        })
-                r_db=self.set_product_detail(index,"child_size",child_size)
-                if r_db:
-                    response_data["is_found"]=True
-                    print("variantes size=",r_db)
-                  #set_Data 
-                #self.set_product_detail(index,"child_size",child_size)
-                  #nose como se hará pero debo preguntar 
+                    data["child"][key]["original_price"] = price
+                    data["child"][key]["get_variation"] = 0
+                    data["child"][key]["stock"] = in_stock
+                    data["child"][key]["quantity"] = quantity
+
+                    if not bool(int(value.get("product_name_saved",0))):
+                        product_name_src = data_sku_soup.get("productIntroData", {}).get("detail", {}).get("goods_name", None)
+                        if product_name_src is not None:
+                            product_name=product_name_src.title()
+                            data["child"][key]["product_name"] = product_name
+
+                    if not bool(int(value.get("description_saved", 0))) and bool(int(value.get("verify_description", 0))):
+                        list_atributes=data_sku_soup.get("productIntroData", {}).get("detail", {}).get("productDetails",None)
+                        description_val = self.set_product_description_ctrl(list_atributes)
+                        data["child"][key]["product_description"] = description_val
+
+
+                    if not bool(int(value.get("color_saved", 0))) and bool(int(value.get("verify_color", 0))):
+
+                        data["child"][key]["color"] = current_product_color   
+
+
+                    data["child"][key]["last_updated"] = current_time
+                    data["child"][key]["searched_times"] = int(value["searched_times"]) + 1
+
+                    if price is not None:
+                        data["child"][key]["is_capture"] = 1
+                    else:
+
+                        data["child"][key]["searched_fail"] = int(data["child"][key]["searched_fail"]) + 1
+                        data["child"][key]["is_capture"] = 0
+
+                        if int(data["child"][key]["searched_fail"]) >= 2:
+                            data["child"][key]["stock"] = 0
+
+                    parent=data["child"][key]
+                    break
+            
+            
+
+            child_size_list=[]
+            child_size={}
+
+            for sku in sku_list:
+                data_size=sku["sku_sale_attr"][0]
+                if data_size:
+                    if data_size["sku_code"]:
+
+                        child_size["size"]=data_size.get("attr_value_name_en",None)
+                        child_size["size_saved"]=(1 
+                            if data_size.get("attr_value_name_en", "")
+                            else 0
+                        )
+                        child_size["verify_size"] = (
+                            0 
+                            if data_size.get("attr_value_name_en", "")
+                            else 1
+                        )
+                        child_size["original_price"] = price if price else None                      
+                        child_size["product_description"] =  parent["product_description"]
+                        child_size["description_saved"] = 1 if parent["product_description"] else 0
+                        if current_product_sku and data_size.get("attr_value_name_en"):
+                            child_size["sku"]=current_product_sku+data_size.get("attr_value_name_en")
+                        else:
+                            child_size["sku"]=None
+                        
+                        child_size["verify_description"] = 0 if parent["product_description"] else 1   
+                        child_size["sku_code"] = sku["sku_code"]
+                        child_size["variant_id"] = parent["variant_id"]
+                        child_size["category"] = parent["category"]
+                        child_size["subcategory"] = parent["subcategory"]
+                        child_size["product_type"] = parent["product_type"]
+                        child_size["product_name"] = parent["product_name"].strip() if parent["product_name"] else None 
+                        child_size["product_name_saved"] = 1 if parent["product_name"] else 0
+                        child_size["verify_name"] = 0 if parent["product_name"] else 1
+                        child_size["platform"] = parent["platform"]
+                        child_size["product_id"] = parent["product_id"]
+                        child_size["short_desc_cf"] = parent["short_desc_cf"]
+                        child_size["category_cf"] = parent["category_cf"]
+                        child_size["category_label"] = parent["category_label"]
+                        child_size["brand"] =  parent["brand"].strip().upper() if parent["brand"] else None
+                        child_size["brand_saved"] = 1 if parent["brand"] else 0
+                        child_size["verify_brand"] = 0 if parent["brand"] else 1
+                        child_size["is_parent"] = 0
+                        child_size["is_child"] = 1
+                        child_size["is_active"] = 0
+                        qty = int(sku["stock"].strip()) if "stock" in sku and str(sku["stock"]).strip().isdigit() else 0
+                        child_size["stock"] = 1 if qty >= int(parent["min_quantity"]) else 0     
+                        child_size["quantity"] = qty
+                        child_size["last_updated"] = current_time
+                        child_size["color"] =  parent["color"]
+                        child_size["color_saved"] =  1 if parent["color"] else None
+                        child_size["verify_color"] =  0 if parent["color"] else 1
+                        child_size["use_product_url"] = 0
+                        child_size["product_url"] = None
+                        child_size["is_capture"] = 1
+                        child_size["searched_times"] =  1
+                        child_size["searched_fail"] =  0
+                        child_size["fail_times"] =  0
+                        child_size["parent_sku"] =  parent["parent_sku"]
+                        child_size["get_variation"] =  0
+                        child_size["height"] =  None
+                        child_size["width"] =  None
+                        child_size["length"] =  None
+                        child_size["dimension_saved"] =  0
+                        child_size["verify_dimension"] =  0
+                        child_size["weight_in_kg"] =  None
+                        child_size["weight_saved"] =  0
+                        child_size["verify_weight"] =  0
+                        child_size["extraction"] =  0
+                        child_size["processing"] =  0
+                        child_size["process_app"] = None
+                        child_size["from_app"] = None                        
+                        child_size = self.create_images_prop(child_prop = child_size)
+                        #section  ignore
+
+                        child_size["is_exist_file"] = self.is_valid_images(child_size)
+                        child_size["verify_images"] = 0 if bool(int(child_size["is_exist_file"])) else 1
+                        child_size_list.append(child_size)
+                        if child_size_list:
+                            self.shn_proc.update_product_list(
+                            data_list = child_size_list
+                            ,from_dev = f"Device:{self.on_device_process} | IP: {self.logger.get_public_ip()}" 
+                            )
+                        child_size_list = []
+            
             #variantes color 
-            
+            if bool(int(parent["is_parent"])) and not bool(int(parent["is_child"])):
 
-            if bool(int(data["is_parent"])) and not bool(int(data["is_child"])):
+                variantes_color=data_sku_soup.get("productIntroData",{}).get("relation_color",[])
+                child_color_list=[]
+                child_color={}
 
-                data_db=self.sku_data[index]
-
-                variantes_color=data_response.get("productIntroData",{}).get("relation_color",[])
-                if variantes_color:
-                    color_variantes=[]
+                if variantes_color and len(variantes_color)>0:
                     for color in variantes_color:
-                        if str(data_db["product_id"]) != str(color["goods_id"]) and str(data_db["sku"]) != str(color["goods_sn"]):
-                            color_variantes.append({
-                                "uuid": None,
-                                "sku": color["goods_sn"],
-                                "sku_code": None,
-                                "variant_id": data_db["variant_id"].strip(),
-                                "category": data_db["category"],
-                                "subcategory": data_db["subcategory"],
-                                "product_type": data_db["product_type"],
-                                "product_name": data_db["product_name"],
-                                "platform": data_db["platform"],
-                                "product_id": color["goods_id"],
-                                "short_desc_cf": data_db["short_desc_cf"],
-                                "category_cf": data_db["category_cf"],
-                                "category_label": data_db["category_label"],
-                                "brand": data_db["brand"],
-                                "is_parent": 1,
-                                "is_child": 1,
-                                "is_active": 1,
-                                "stock": data_db["stock"],
-                                "quantity": data_db["quantity"],
-                                "original_price": data_db["original_price"],
-                                "last_updated": last_updated,
-                                "color": color["mainSaleAttribute"][0]["attr_value"],
-                                "use_product_url": 0,
-                                "product_url": None,
-                                "is_capture": 1,
-                                "searched_times" : 1,
-                                "searched_fail" : 0,
-                                "fail_times" : 0
-                            })
-                    r_db_c=self.set_product_detail(index,"child_color_var",color_variantes)
-                    if r_db_c:
-                        response_data["is_found"]=True
-                        print("variantes_color=",r_db_c)
-            return response_data
+                        child_color = {
+                            "sku" : (color.get("goods_sn", None) or "").strip() or None,
+                            "sku_code" :  None,
+                            "variant_id" : (color.get("goods_sn", None) or "").strip() or None,
+                            "category" : parent["category"],
+                            "subcategory" : parent["subcategory"],
+                            "product_type" : parent["product_type"],
+                            "product_name" : None,
+                            "product_name_saved":0,
+                            "verify_name":1,
+                            "product_description":None,
+                            "description_saved":0,
+                            "verify_description":1,
+                            "platform" : parent["platform"],
+                            "product_id" :  color["goods_id"],
+                            "short_desc_cf" : parent["short_desc_cf"],
+                            "category_cf" : parent["category_cf"],
+                            "category_label" : parent["category_label"],
+                            "brand" : parent["brand"],
+                            "brand_saved": 1 if parent["brand"] else 0,
+                            "verify_brand":1,
+                            "is_parent" : 1,
+                            "is_child" : 1,
+                            "is_active" : 1,
+                            "extraction":1,
+                            "stock" : 0,
+                            "quantity" : None,
+                            "original_price" : parent["original_price"],
+                            "last_updated" : current_time,
+                            "color" :  color["mainSaleAttribte"][0]["attr_value"],
+                            "color_saved":1 if color["mainSaleAttribte"][0]["attr_value"] else 0,
+                            "verify_color":1,
+                            "use_product_url" : 0,
+                            "product_url" : None,
+                            "is_capture" : 1,
+                            "searched_times" : 1,
+                            "searched_fail" : 0,
+                            "fail_times" : 0,
+                            "height": None,
+                            "width":None,
+                            "length": None,
+                            "dimension_saved":0,
+                            "verify_dimension":1,
+                            "weight_in_kg" : None,
+                            "weight_saved":0,
+                            "verify_weight":1,
+                            "is_exist_file":0,
+                            "verify_images":1,
+                            "size":None,
+                            "size_saved":0,
+                            "verify_size":1,
+                            "own_image":1,
+                            "processing":0,
+                            "process_app":None,
+                            "from_app":None,
+                            "get_variation":1,
+                            "parent_sku": parent["parent_sku"]
+                        }
+                        child_color=self.create_images_prop(child_color)
+                        child_color_list.append(child_color)
+                    if child_color_list:
+                        self.shn_proc.update_product_list(
+                        data_list = child_color_list
+                        ,from_dev = f"Device:{self.on_device_process} | IP: {self.logger.get_public_ip()}" 
+                        )
+            self.validate_data(index)       
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
+            logs_list=self.logger.bug_logs_data(e)
+            self.shn_proc.bug_register_proc(logs_list)
             traceback.print_exc()
-            return response_data
+            
+
+
+
+
+
+    def create_images_prop(self,child_prop :dict):
+        images_prper_list = self.initial_detail_images_list()
+
+        for ind, img_prop in enumerate(images_prper_list):
+            child_prop[img_prop] = None
+        
+        return child_prop
+
+
+
+
 
     def set_product_detail(self,index,key,data):
         try:
