@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.options import Options
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -30,6 +31,11 @@ from pathlib import Path
 from pdf2image import convert_from_path
 from urllib.parse import urljoin
 from models.entities.logs.bug_logger import BugLogger
+from shared.user_agents import user_agents,blocked_endpoints
+import random
+from solver_captcha_individual_detect import *
+import tempfile
+
 
 
 class SheinController():
@@ -51,16 +57,20 @@ class SheinController():
         self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
         self.is_found=None
+        self.email="luispubg9905@hotmail.com"
+        self.password="Heaveny2"
+        self.icon_detector=None
  
     def init_driver(self):
             """ Inicializa el WebDriver con las opciones deseadas """
-            headers = {
-                'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                'Accept': "*/*",
-                'Accept-Language': self.language,
-                'Accept-Encoding': "gzip,deflate,br",
-                'Connection': "keep-alive"
-            }
+            # headers = {
+            #     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            #     'Accept': "*/*",
+            #     'Accept-Language': self.language,
+            #     'Accept-Encoding': "gzip,deflate,br",
+            #     'Connection': "keep-alive"
+            # }
+            user_agent=random.choice(user_agents)
             selenium_url = 'http://selenium:4444/wd/hub'
             opts = Options()
             #opts.add_argument("--headless") 
@@ -82,82 +92,153 @@ class SheinController():
             opts.add_argument("--no-sandbox")  # Mejora el rendimiento en algunos entornos
             opts.add_argument("--disable-dev-shm-usage")  # Mejora en sistemas con poca memoria compartida
             #opts.add_argument("--disk-cache-dir=/tmp/cache")  # Redireccionar caché para mejorar tiempos
-            
+            #prefs = {"profile.managed_default_content_settings.images": 2}
+            #opts.add_experimental_option("prefs", prefs)
             opts.add_argument("--ignore-certificate-errors")
-            opts.add_argument(f'User-agent={headers["User-Agent"]}')
-
-            # Intenta conectarte al servidor de Selenium
-            # driver= webdriver.Remote(
-            #     command_executor=selenium_url,
-            #     options=opts
-            # )
-
-            driver= webdriver.Chrome(options=opts)
+            opts.add_argument(f'User-agent={user_agent}')
+            driver= webdriver.Chrome(options=opts,)
             return driver
 
 
+    def login_data(self):
+
+        self.driver.get(self.url_base_usa+"user/auth/login")
+        try:
+             
+            WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@class="page__login-newUI-continue"]'))
+            )
+
+            container_input_email= self.driver.find_element(By.XPATH,"//div[@class='email-recommend-input']")
+            input_email=container_input_email.find_element(By.XPATH,".//div//input")
+            input_email.click()
+            actions=ActionChains(self.driver)
+
+            for letra in self.email:
+                actions.send_keys(letra)
+                actions.pause(time.sleep(random.uniform(1,2)))
 
 
-    def get_product_detail(self,platform : str = 'Shein'):
+            actions.perform()
 
-        # ip = self.get_public_ip()
-        # if ip:
-        #     self.on_device_process = ip
+            print("paso el perform")
+
+            WebDriverWait(self.driver,10).until(
+                EC.element_to_be_clickable((By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button"))
+            )
+
+            print("paso el wait")
+
+            container_click_button=self.driver.find_element(By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button")
+            container_click_button.click()
+
+            print("paso el click")
+            time.sleep(2)
+            #contraseña 
+
+            WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@class="main-content"]'))
+            )
+
+
+            #//div[@class="main-content"]//div[@class="page__login_input-filed page__login-newUI-input"]//div[@class="sui-input"]//input
+            container_modal=self.driver.find_element(By.XPATH,'//div[@class="main-content"]')
+
+            input_password=container_modal.find_element(By.XPATH,'.//div[@class="page__login_input-filed page__login-newUI-input"]//div[@class="sui-input"]//input')
+            input_password.click()
+            actions_password=ActionChains(self.driver)
+
+
+            for letra in self.password:
+                actions_password.send_keys(letra)
+                time.sleep(random.uniform(0.1,0.5))
+
+
+            actions_password.perform()
+
+
+
+            WebDriverWait(self.driver,10).until(
+                EC.element_to_be_clickable((By.XPATH,".//div[@class='actions']//div[@class='login-point_button']/button"))
+            )
+
+            continue_click=container_modal.find_element(By.XPATH,'.//div[@class="actions"]//div[@class="login-point_button"]/button')
+            current_url=self.driver.current_url
+            continue_click.click()
+
+            input("en el click de identificate")
+
+            if self.driver.current_url==current_url:
+                return False
         
+            print("Login exitoso")
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+
+    def bloquear_requests(self):
+        """Intercepta y bloquea ciertos endpoints de la red"""
+        logs = self.driver.get_log("performance")  # Captura logs de la red
+
+        for entry in logs:
+            try:
+                message = json.loads(entry["message"])["message"]
+                request_url = message.get("params", {}).get("request", {}).get("url", "")
+                
+                if any(blocked in request_url for blocked in blocked_endpoints):
+                    print(f"❌ Bloqueado: {request_url}")
+            except Exception:
+                pass
+
+
+    def get_product_list(self,platform : str = 'Shein'):
+
+
         response =  self.shn_proc.get_product_list_proc(platform,self.on_device_process)
         if response:
             self.set_sku_data_list(response)
-        self.update_data_sku_price()
-
-
-    
-
-    def get_data_for_variant(self,platform:str='Shein',from_app:str='vps1'):
-        response =  self.shn_proc.get_data_for_variantes_proc(platform,from_app)
-        if response:
-            self.set_sku_data_list(response)
-        self.update_variante_list()
+            self.update_data_sku_price()
 
     def is_found_data(self):
         return self.is_found
         
-    def update_variante_list(self):
-        #self.sku_data=None
-        sku_list= self.get_sku_data_list()
-        #self.affected_rows = 0
-        if not sku_list:
-            return
-        self.lenght_sku_list = len(sku_list)
-        try:
-            for index,data in enumerate(sku_list):
-                url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
-                self.driver.get(url)
-                self.extract_variantes(index)
-            self.sku_data=None
-        except Exception as e:
-            print(f"Error al actualizar los datos: {str(e)}")
-            return None
-
     def update_data_sku_price(self):
         sku_list= self.get_sku_data_list()
-        #self.affected_rows = 0
         if not sku_list:
             return
         self.lenght_sku_list = len(sku_list)
         try:
+            
+            # if not self.login_data():
+            #     print("Error al iniciar sesión")
+            #     return
 
             for index,data in enumerate(sku_list):
 
-                if data.get("product_id", None).strip() and bool(int(data.get("is_parent", False))):
+                if data.get("product_id", None).strip() and bool(int(data.get("is_parent", False))) and not bool(int(data.get("get_variation", 0))):
                     url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
                     self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
                     self.driver.get(url)
+                    time.sleep(1)
+                    #self.bloquear_requests()
                     self.extract_info(index)
                     self.url_complete=None
+                
+                elif data.get("product_id","").strip() and bool(int(data.get("is_parent",0))) and bool(int(data.get("get_variation",0))):
+                    url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
+                    self.driver.get(url)
+                    time.sleep(1)
+                    #self.bloquear_requests()
+                    self.extract_variantes(index)
+                    self.url_complete=None
+                else:
+                    pass
             self.sku_data=None
         except Exception as e:
             print(f"Error al actualizar los datos: {str(e)}")
-            return None
+            traceback.print_exc()
         
 
 
@@ -175,10 +256,169 @@ class SheinController():
             self.affected_rows = 0 
         self.affected_rows += affected
     
+
+
+
+
+    def obtains_img_captcha(self,refresh_img:bool=True):
+
+        try:
+
+            if refresh_img:
+                click_refresh=WebDriverWait(self.driver,5).until(
+                    EC.element_to_be_clickable((By.XPATH,"//div[@class='captcha_btn_click_wrapper']//div[@class='captcha_click_refresh']"))
+                )
+                
+                click_refresh.click()
+            
+            container_img=WebDriverWait(self.driver,5).until(
+                EC.presence_of_element_located((
+                    By.XPATH,"//div[@class='captcha_click_wrapper']"
+                ))
+            )
+
+            img_captcha=container_img.find_element(By.XPATH,".//div[@class='pic_wrapper']")
+            time.sleep(1)
+            style_attribute=img_captcha.get_attribute("style")
+            img_captcha_url=style_attribute.replace("background-image: url('","").replace("')","")
+            match = re.search(r'url\("?(.*?)"?\)', style_attribute)
+            if match:
+                image_url = match.group(1)
+                print("URL de la imagen:", image_url)
+                response=requests.get(image_url)
+                if response.status_code==200:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+                        temp_file.write(response.content)
+                        return temp_file.name
+        except Exception as e:
+            return
+
+
+
+    def mover_mouse_naturalmente(self, elemento, destino_x, destino_y, pasos=30, delay=0.02):
+        """
+        Mueve el mouse en una ruta curva hasta el destino y luego hace clic.
+        
+        :param driver: Instancia de Selenium WebDriver.
+        :param elemento: Elemento sobre el cual se moverá el mouse.
+        :param destino_x: Coordenada X final relativa al elemento.
+        :param destino_y: Coordenada Y final relativa al elemento.
+        :param pasos: Número de movimientos intermedios.
+        :param delay: Tiempo entre cada paso.
+        """
+        
+        self.driver.execute_script("""
+            var elem = arguments[0];
+            var rect = elem.getBoundingClientRect();
+            var destino_x = arguments[1] + rect.left + window.scrollX;
+            var destino_y = arguments[2] + rect.top + window.scrollY;
+            
+            // Obtener la posición inicial del cursor
+            var cursor_x = rect.left + rect.width / 2;
+            var cursor_y = rect.top + rect.height / 2;
+            
+            var pasos = arguments[3];
+            var delay = arguments[4];
+
+            function easeOutQuad(t) {
+                return t * (2 - t);
+            }
+
+            function moverMouse(index) {
+                if (index > pasos) {
+                    setTimeout(() => {
+                        var clickEvent = new MouseEvent('click', {bubbles: true, clientX: destino_x, clientY: destino_y});
+                        elem.dispatchEvent(clickEvent);
+                        
+                        // Dibujar un círculo en la posición de clic
+                        var circle = document.createElement('div');
+                        circle.style.width = '10px';
+                        circle.style.height = '10px';
+                        circle.style.background = 'red';
+                        circle.style.borderRadius = '50%';
+                        circle.style.position = 'absolute';
+                        circle.style.top = destino_y - 5 + 'px';
+                        circle.style.left = destino_x - 5 + 'px';
+                        circle.style.zIndex = '9999';
+                        document.body.appendChild(circle);
+                        setTimeout(() => { circle.remove(); }, 1000);
+
+                    }, delay * 1000);
+                    return;
+                }
+
+                var t = easeOutQuad(index / pasos);
+                var nuevo_x = cursor_x + (destino_x - cursor_x) * t + (Math.random() - 0.5) * 5;
+                var nuevo_y = cursor_y + (destino_y - cursor_y) * t + (Math.random() - 0.5) * 5;
+
+                var moveEvent = new MouseEvent('mousemove', {bubbles: true, clientX: nuevo_x, clientY: nuevo_y});
+                elem.dispatchEvent(moveEvent);
+
+                setTimeout(() => moverMouse(index + 1), delay * 1000);
+            }
+
+            moverMouse(0);
+        """, elemento, destino_x, destino_y, pasos, delay)
+
+
+
+   
+    def solver_click_captcha(self, temp_img_path: str):
+        MAX_INTENTOS = 4  # Número máximo de intentos
+
+        # if not hasattr(self, 'icon_detector') or self.icon_detector.image_path != temp_img_path:
+        #self.icon_detector = IconDetector(temp_img_path, filtro_tipo="grey")
+        for intento in range(1, MAX_INTENTOS + 1):
+            print(f"Intento {intento} de {MAX_INTENTOS}")
+
+            if temp_img_path:
+                self.icon_detector = IconDetector(temp_img_path,filtro_tipo="grey")
+                self.icon_detector.recortar_secciones()
+                self.icon_detector.detectar_keypoints()
+                self.icon_detector.encontrar_coincidencias()
+                self.icon_detector.mostrar_coincidencias_por_icono()
+                puntos = self.icon_detector.mostrar_resultado_final()
+
+                if puntos and len(puntos) > 3:
+                    puntos = puntos[:3]
+                elif puntos and len(puntos) <= 3:
+                    print(f"Solo se encontraron {len(puntos)} puntos, se procederá con ellos.")
+                if puntos:
+                    for punto in puntos:
+                        try:
+                            # Clic en los puntos detectados
+                            click_captcha = WebDriverWait(self.driver, 10).until(
+                                EC.element_to_be_clickable((By.XPATH, "//div[@class='captcha_click_wrapper']//div[@class='pic_wrapper']"))
+                            )
+                            self.mover_mouse_naturalmente(click_captcha, punto[0], punto[1])
+                            time.sleep(1)
+                            print(f"Punto clickeado en posición: {punto}")
+                        except Exception as e:
+                            continue
+                
+
+                confirmar_btn = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//div[@class='captcha_btn_click_wrapper']//div[@class='captcha_click_confirm']"))
+                )
+
+                confirmar_btn.click()
+
+                if "captcha" not in self.driver.current_url:
+                    print("Captcha resuelto con éxito.")
+                    return True  # Salir de la función si se resolvió el CAPTCHA
+
+                print("Captcha aún presente, refrescando y reintentando...")
+                temp_img_path = self.obtains_img_captcha(refresh_img=False)
+
+        print(f"No se pudo resolver el CAPTCHA después de {MAX_INTENTOS} intentos.")
+        return False
+
+                
+
+
+
     def extract_info(self,index:int):    
         self.driver.implicitly_wait(5)
-        #self.driver.get(self.url_complete)
-        data = self.sku_data[index] 
         try:
             WebDriverWait(self.driver, 10).until(
                 lambda d: "captcha" not in d.current_url
@@ -186,36 +426,33 @@ class SheinController():
             print("Acceso al producto exitoso:", self.driver.current_url)
         except:
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
-            self.driver.get("https://us.shein.com/login")
+            #self.driver.get("https://us.shein.com/login")
+            if not "captcha_type=905" in self.driver.current_url:
+                url=self.driver.current_url
+                new_url = url.replace("captcha_type", "captcha_type=905")
+                self.driver.get(new_url)
+            path_img=self.obtains_img_captcha()
+            result_solve_captcha= self.solver_click_captcha(path_img)
+            if not result_solve_captcha:
+                print("Error al resolver el CAPTCHA.")
+                return
+
+            
+
 
         # Si se logra salir del CAPTCHA, continuar con el scraping
-        self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es") 
-
-        print(self.driver.current_url)   
-        if "captcha" not in self.driver.current_url:
-            print("Página del producto lista para el scraping.")
-        else:
-            print("Permaneciendo en la página del CAPTCHA.")
-            return
+        #self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es")   
+        # if "captcha" not in self.driver.current_url:
+        #     print("Página del producto lista para el scraping.")
+        # else:
+        #     print("Permaneciendo en la página del CAPTCHA.")
+        #     return
         try:
-            # modal_is_closed = self.close_modal()
-            # if modal_is_closed:
-            #     print("Modal cerrado")
-            # else:
-            #     print("No se encontró el modal")
-            # WebDriverWait(self.driver, 10).until(
-            #     EC.presence_of_element_located((By.ID,"goods-detail-v3"))
-            # )
-            # banner_is_closed=self.close_banner()
-            # if banner_is_closed:
-            #     print("Banner cerrado")
-            # else:
-            #     print("No se encontró el banner")
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             response_json=self.extract_data_soup()
             if response_json:
                 print("Información extraída con éxito")
-                self.structure_data(response_json,index)
+                self.update_price_data(response_json,index)
             else:
                 print("Error al extraer la información en extract_info")
             self.soup=None
@@ -223,19 +460,6 @@ class SheinController():
             print(e)
             print("Error al cargar la página")
             self.product_data_not_found_api_ctrl(index)
-    def close_modal(self):
-        try:
-            WebDriverWait(self.driver, 3).until(
-                EC.presence_of_element_located((By.XPATH, '//div[@class="sui-dialog__body"]'))
-            )
-            close_button = WebDriverWait(self.driver, 3).until(
-                EC.element_to_be_clickable((By.XPATH, '//div[@class="sui-dialog__body"]//span[@class="sui-icon-common__wrap icon-close homepage-she-close"] | //div[@class="sui-dialog__body"]//div[@class="dialog-header-v2__close-btn"]/*'))
-            )
-            close_button.click()
-            return True
-        except (TimeoutException,NoSuchElementException) as e:
-            print(f"No se encontró el modal o el botón de cierre. Error:")
-            return False
 
     def close_driver(self):
         self.driver.quit()
@@ -281,24 +505,13 @@ class SheinController():
             print(f"Error al extraer la información del producto en data_soup")
             return None
 
-    def close_banner(self):
-        try:
-            close_button = WebDriverWait(self.driver, 3).until(
-                EC.element_to_be_clickable((By.XPATH,'//div[@class="quickg-outside"]'))
-            )
-            close_button.click()
-            return True
-        except Exception as e:
-            print("No se encontró el banner de registro rápido")
-            return False
-
 
     def current_time(self):
         current_time = datetime.now()
         formatted_current_time = current_time.strftime('%Y-%m-%d %H:%M:%S.%f')
         return formatted_current_time    
 
-    def structure_data(self,data:list[dict],index:int):
+    def update_price_data(self,data:list[dict],index:int):
         try:
 
             db_data=self.sku_data[index]
@@ -352,8 +565,8 @@ class SheinController():
                             db_data["child"][key]["product_name"]=product_name_title
 
                     if not bool(int(value.get("description_saved", 0))) and bool(int(value.get("verify_description", 0))):
-
-                        product_description_src=self.set_product_description_ctrl()
+                        list_atributes=data.get("productIntroData", {}).get("detail", {}).get("productDetails",None)
+                        product_description_src=self.set_product_description_ctrl(list_atributes)
                         db_data["child"][key]["product_description"]=product_description_src  
                     
                     if not bool(int(value.get("color_saved", 0))) and bool(int(value.get("verify_color", 0))):
@@ -533,7 +746,6 @@ class SheinController():
         except Exception as e:
             print(f"Error al estructurar los datos: {str(e)}")
             traceback.print_exc()
-            return None
 
 
     async def copy_file(self,sku:str, new_name : str,old_name :str,extension:str):
@@ -638,7 +850,6 @@ class SheinController():
         qty = 3
         return qty
     
-
     async def download_multiple_images(self, sku, image_links):
         max_images = min(5, len(image_links))  # Limitar a 5 imágenes o menos si hay menos URLs
         image_links = image_links[:max_images]
@@ -673,8 +884,6 @@ class SheinController():
         
         product_images = []
         return hi_resolution_imgs
-
-
 
 
     async def download_image(self,sku, image_link : str = None, file_name : str = None):
@@ -736,7 +945,6 @@ class SheinController():
         return cleared_url
 
 
-
     def replace_size(self,value):
             replace = {
                 '1XL': 'XL',
@@ -755,7 +963,6 @@ class SheinController():
                     return value
 
             return value
-
 
 
     def initial_detail_images_list(self):
@@ -798,8 +1005,6 @@ class SheinController():
             return None
 
 
-
-
     def get_color_crtl(self,data:dict):
 
         color = None
@@ -820,10 +1025,6 @@ class SheinController():
             except Exception as e:
                 print(f"Error al obtener el color: {str(e)}")
                 return None
-
-
-
-
 
     def size_structure_data_ctrl(self, data):
         data_size = []
@@ -884,10 +1085,6 @@ class SheinController():
         data_size = list(structured_data.values())
         return data_size
     
-
-
-
-
     def size_handle_data_ctrl(self, text):
 
         text = re.sub(r'\s*inch\s*', '', text, flags=re.IGNORECASE)
@@ -925,11 +1122,6 @@ class SheinController():
     def inches_to_cm_ctrl(self, inch):
         cm = inch * 2.54
         return cm
-    
-
-
-
-
 
     def size_structure_data_ctrlv2(self, data_v):
 
@@ -1003,15 +1195,6 @@ class SheinController():
         if not found:
             new_row = [talla, value]
             current_data.append(new_row)
-
-
-
-
-
-
-
-
-
 
 
     async def html_structure(self,data_size,sku):
@@ -1170,9 +1353,6 @@ class SheinController():
         
 
 
-
-
-
     def bug_logs_data(self, e, severity="ERROR"):
         try:
             # Intentamos convertir el código de error, si está disponible
@@ -1200,12 +1380,6 @@ class SheinController():
         return json.dumps(log_list)
     
 
-
-
-
-
-
-
     def extract_variantes(self,index:int):
         
         self.driver.implicitly_wait(5)
@@ -1217,48 +1391,40 @@ class SheinController():
             print("Acceso al producto exitoso:", self.driver.current_url)
         except:
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
-            self.driver.get("https://us.shein.com/login")
+        #     self.driver.get("https://us.shein.com/login")
 
-        # Si se logra salir del CAPTCHA, continuar con el scraping
+        # # Si se logra salir del CAPTCHA, continuar con el scraping
 
-        self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es") 
+        # self.driver.get(self.url_base+f"product-p-{data['product_id']}.html?languaje=es") 
 
         print(self.driver.current_url)   
         if "captcha" not in self.driver.current_url:
-            print("Página del producto lista para el scraping.")
-            #self.driver.get(self.url_base_usa+f"/product-p-{data['product_id']}.html")    
+            print("Página del producto lista para el scraping.")  
         else:
             print("Permaneciendo en la página del CAPTCHA.")
+            #logica captcha 
             return
         try:
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             response_json=self.extract_data_soup()
             if response_json:
                 print("Información extraída con éxito")
-                response_variantes=self.extract_variant(index,response_json)
-                if response_variantes["is_found"]:
-                    self.is_found=True
-                else:
-                    self.is_found=False
+                self.extract_variant(index,response_json)
             else:
                 print("Error al extraer la información en extract_variantes")
+                self.product_data_not_found_api_ctrl(index)
             self.soup=None
         except Exception as e:
             print(e)
             print("Error al cargar la página")
-            #self.product_data_not_found_api_ctrl(index)
-
-
-
-
-
+            self.product_data_not_found_api_ctrl(index)
 
 
     def extract_variant(self,index:int,data_sku_soup):
 
         data=self.sku_data[index]
-        response_data={"is_found":False}
-        last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # response_data={"is_found":False}
+        # last_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         parent={}
         
         try:
@@ -1266,7 +1432,7 @@ class SheinController():
             current_product_sku=data_sku_soup["currentGoodsSn"]
             current_product_color=data_sku_soup["productIntroData"]["detail"]["mainSaleAttribute"][0]["attr_value"]
             current_time=self.current_time()
-            price_src=data_sku_soup.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
+            price_src=data_sku_soup.get("productIntroData",{}).get('getPrice',{}).get('salePrice',{}).get('amount') or data_sku_soup.get('getPrice',{}).get('salePrice',{}).get('usdAmount')
 
             price=price_src if price_src else None
 
@@ -1275,7 +1441,7 @@ class SheinController():
             
 
             for key,value in enumerate(data['child']):
-                compare_sku=value["sku"].strip().upper()
+                compare_sku=value["sku"].strip()
                 if(compare_sku==current_product_sku) or (compare_sku==current_product_id):
 
                     try:
@@ -1328,7 +1494,8 @@ class SheinController():
                     parent=data["child"][key]
                     break
             
-            
+            if not parent:
+                self.validate_data(index)
 
             child_size_list=[]
             child_size={}
@@ -1336,7 +1503,7 @@ class SheinController():
             for sku in sku_list:
                 data_size=sku["sku_sale_attr"][0]
                 if data_size:
-                    if data_size["sku_code"]:
+                    if sku["sku_code"]:
 
                         child_size["size"]=data_size.get("attr_value_name_en",None)
                         child_size["size_saved"]=(1 
@@ -1376,7 +1543,7 @@ class SheinController():
                         child_size["is_parent"] = 0
                         child_size["is_child"] = 1
                         child_size["is_active"] = 0
-                        qty = int(sku["stock"].strip()) if "stock" in sku and str(sku["stock"]).strip().isdigit() else 0
+                        qty = int(sku["stock"]) if "stock" in sku and str(sku["stock"]) else 0
                         child_size["stock"] = 1 if qty >= int(parent["min_quantity"]) else 0     
                         child_size["quantity"] = qty
                         child_size["last_updated"] = current_time

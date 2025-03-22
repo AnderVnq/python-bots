@@ -70,13 +70,13 @@ class DBConfigMySQL:
             self.connection.close()
 
 
-    def get_shein_product_list_dbcf(self,platform:str, vps: str = 'vps1'):
+    def get_shein_product_list_dbcf(self,platform:str, vps: str = 'vps1',v_ext1=0,v_ext2=0):
             sp_name = f"SP_SkuListToUpdate_Shein"
             try:
                 connection = self.connect()
                 with connection.cursor() as cursor:
                     cursor.execute("SET @result = '';")
-                    cursor.execute(f"CALL {sp_name}(%s,%s, @result);", (platform,vps,))
+                    cursor.execute(f"CALL {sp_name}(%s,%s,%s,%s, @result);", (platform,vps,v_ext1,v_ext2,))
                     cursor.execute("SELECT @result;")
                     result = cursor.fetchone()[0]
                     json_data = json.loads(result) if result else []

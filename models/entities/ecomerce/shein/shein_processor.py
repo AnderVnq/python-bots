@@ -1,6 +1,6 @@
 # from models.database_model import DatabaseModel
 from _config.db_config import DBConfigMySQL
-from logs.bug_logger import  BugLogger
+from models.entities.logs.bug_logger import  BugLogger
 import time
 import json
 
