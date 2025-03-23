@@ -98,9 +98,6 @@ class SheinController():
                 self.update_data_sku_price()
             else:
                 print("Error al iniciar sesión")
-                if self.driver.service.process is not None:
-                    self.driver.close()
-                    self.driver.quit()
                 return
 
 
@@ -129,7 +126,7 @@ class SheinController():
                     self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
                     self.driver.get(url)
 
-                    if "captcha" in self.driver.current_url or index == 35:
+                    if "captcha" in self.driver.current_url or index == 5:
                         if self.logout_data():
                             self.updated_rows(1)
                     else:
@@ -137,9 +134,6 @@ class SheinController():
                         self.updated_rows(1)
         except Exception as e:
             print(f"Error al actualizar los datos: {str(e)}")
-            if self.driver.service.process is not None:  # Validate if the driver is still running
-                self.driver.close()
-                self.driver.quit()
             return
 
 
@@ -176,15 +170,10 @@ class SheinController():
             container_input_email= self.driver.find_element(By.XPATH,"//div[@class='email-recommend-input']")
             input_email=container_input_email.find_element(By.XPATH,".//div//input")
             input_email.click()
-            #actions=ActionChains(self.driver)
 
-            for letra in self.email:
+            for letra in self.email2:
                 input_email.send_keys(letra)
                 time.sleep(random.uniform(0.2,0.4))
-                #actions.pause(time.sleep(random.uniform(1,2)))
-
-
-            #actions.perform()
 
             WebDriverWait(self.driver,10).until(
                 EC.element_to_be_clickable((By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button"))
@@ -192,10 +181,7 @@ class SheinController():
 
             container_click_button=self.driver.find_element(By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button")
             container_click_button.click()
-
-            #input("esperar para  depurar")
-
-
+            
             #contraseña 
 
             WebDriverWait(self.driver, 7).until(
@@ -244,8 +230,6 @@ class SheinController():
             return True
         except Exception as e:
             print(e)
-            self.driver.close()
-            self.driver.quit()
             return False
 
 
@@ -263,10 +247,9 @@ class SheinController():
 if __name__=="__main__":
     shein_c=SheinController()
     shein_c.get_product_list()
-    count=shein_c.affected_data()
-    if shein_c.driver.service.process is not None:  # Validate if the driver is still running
-        shein_c.driver.close()
-        shein_c.driver.quit()
+    count=shein_c.affected_data() # Validate if the driver is still running
+    shein_c.driver.close()
+    shein_c.driver.quit()
     record = "Registro"
     ecomerce = "Shein"
     if count > 0:
