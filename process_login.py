@@ -34,9 +34,10 @@ class SheinController():
         # self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
         self.is_found=None
-        self.email="luispubg9905@hotmail.com"
+        self.emails=["luispubg9905@hotmail.com","anderson_escorpio_122@hotmail.com","ndrsnvenegas♠gmail.com"]
         self.password="Heaveny2"
-        self.email2="anderson_escorpio_122@hotmail.com"
+        self.email_index = 0  # Índice para controlar el cambio de email
+        self.email = self.emails[self.email_index] 
  
     def init_driver(self):
             """ Inicializa el WebDriver con las opciones deseadas """
@@ -150,15 +151,22 @@ class SheinController():
             )
             click_return_login.click()
             
-            return self.login_data(refresh=False)
+            return self.login_data(refresh=False,change_email=True)
 
         except Exception as e:
             print(e)
             return False
 
 
-    def login_data(self,refresh=True)->bool:
+    def login_data(self,refresh=True,change_email=False)->bool:
 
+
+        if change_email:
+            # Mover al siguiente email en el ciclo
+            self.email_index = (self.email_index + 1) % len(self.emails)
+            self.email = self.emails[self.email_index]
+        
+        current_email = self.email
         if refresh:
             self.driver.get(self.url_base_usa+"user/auth/login")
         try:
@@ -171,7 +179,8 @@ class SheinController():
             input_email=container_input_email.find_element(By.XPATH,".//div//input")
             input_email.click()
 
-            for letra in self.email2:
+
+            for letra in current_email:
                 input_email.send_keys(letra)
                 time.sleep(random.uniform(0.2,0.4))
 

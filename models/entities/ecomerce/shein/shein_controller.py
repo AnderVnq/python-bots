@@ -57,8 +57,10 @@ class SheinController():
         self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
         self.is_found=None
-        self.email="luispubg9905@hotmail.com"
+        self.emails=["luispubg9905@hotmail.com","anderson_escorpio_122@hotmail.com","ndrsnvenegas♠gmail.com"]
         self.password="Heaveny2"
+        self.email_index = 0  # Índice para controlar el cambio de email
+        self.email = self.emails[self.email_index] 
         self.icon_detector=None
  
     def init_driver(self):
@@ -100,9 +102,17 @@ class SheinController():
             return driver
 
 
-    def login_data(self):
+    def login_data(self,refresh=True,change_email=False)->bool:
 
-        self.driver.get(self.url_base_usa+"user/auth/login")
+
+        if change_email:
+            # Mover al siguiente email en el ciclo
+            self.email_index = (self.email_index + 1) % len(self.emails)
+            self.email = self.emails[self.email_index]
+        
+        current_email = self.email
+        if refresh:
+            self.driver.get(self.url_base_usa+"user/auth/login")
         try:
              
             WebDriverWait(self.driver, 5).until(
@@ -112,31 +122,22 @@ class SheinController():
             container_input_email= self.driver.find_element(By.XPATH,"//div[@class='email-recommend-input']")
             input_email=container_input_email.find_element(By.XPATH,".//div//input")
             input_email.click()
-            actions=ActionChains(self.driver)
-
-            for letra in self.email:
-                actions.send_keys(letra)
-                actions.pause(time.sleep(random.uniform(1,2)))
 
 
-            actions.perform()
-
-            print("paso el perform")
+            for letra in current_email:
+                input_email.send_keys(letra)
+                time.sleep(random.uniform(0.2,0.4))
 
             WebDriverWait(self.driver,10).until(
                 EC.element_to_be_clickable((By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button"))
             )
 
-            print("paso el wait")
-
             container_click_button=self.driver.find_element(By.XPATH,"//div[@class='actions']//div[@class='login-point_button']/button")
             container_click_button.click()
-
-            print("paso el click")
-            time.sleep(2)
+            
             #contraseña 
 
-            WebDriverWait(self.driver, 5).until(
+            WebDriverWait(self.driver, 7).until(
                 EC.presence_of_element_located((By.XPATH, '//div[@class="main-content"]'))
             )
 
@@ -144,19 +145,17 @@ class SheinController():
             #//div[@class="main-content"]//div[@class="page__login_input-filed page__login-newUI-input"]//div[@class="sui-input"]//input
             container_modal=self.driver.find_element(By.XPATH,'//div[@class="main-content"]')
 
-            input_password=container_modal.find_element(By.XPATH,'.//div[@class="page__login_input-filed page__login-newUI-input"]//div[@class="sui-input"]//input')
+            WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH, '//div[@class="main-content"]//div[@class="sui-input"]//input[@type="password" and @aria-label="Contraseña:"]'))
+            )
+            input_password=container_modal.find_element(By.XPATH,'.//div[@class="sui-input"]//input[@type="password" and @aria-label="Contraseña:"]')
             input_password.click()
-            actions_password=ActionChains(self.driver)
-
+            #actions_password=ActionChains(self.driver)
 
             for letra in self.password:
-                actions_password.send_keys(letra)
-                time.sleep(random.uniform(0.1,0.5))
-
-
-            actions_password.perform()
-
-
+                #actions_password.send_keys(letra)
+                input_password.send_keys(letra)
+                time.sleep(random.uniform(0.3,0.5))
 
             WebDriverWait(self.driver,10).until(
                 EC.element_to_be_clickable((By.XPATH,".//div[@class='actions']//div[@class='login-point_button']/button"))
@@ -166,40 +165,39 @@ class SheinController():
             current_url=self.driver.current_url
             continue_click.click()
 
-            input("en el click de identificate")
+            #input("en el click de identificate")
+
+            try:
+                WebDriverWait(self.driver,10).until(
+                    EC.presence_of_element_located((By.XPATH,'//div[@class="sui-dialog__body"]//div[@class="skip"]'))
+                )
+                click_skip=self.driver.find_element(By.XPATH,'//div[@class="sui-dialog__body"]//div[@class="skip"]/span')
+                click_skip.click()
+            except Exception as e:
+                print(e)
+                return False
 
             if self.driver.current_url==current_url:
                 return False
-        
-            print("Login exitoso")
+            
             return True
         except Exception as e:
             print(e)
             return False
 
 
-    def bloquear_requests(self):
-        """Intercepta y bloquea ciertos endpoints de la red"""
-        logs = self.driver.get_log("performance")  # Captura logs de la red
-
-        for entry in logs:
-            try:
-                message = json.loads(entry["message"])["message"]
-                request_url = message.get("params", {}).get("request", {}).get("url", "")
-                
-                if any(blocked in request_url for blocked in blocked_endpoints):
-                    print(f"❌ Bloqueado: {request_url}")
-            except Exception:
-                pass
-
 
     def get_product_list(self,platform : str = 'Shein'):
-
 
         response =  self.shn_proc.get_product_list_proc(platform,self.on_device_process)
         if response:
             self.set_sku_data_list(response)
-            self.update_data_sku_price()
+
+            if self.login_data():
+                self.update_data_sku_price()
+            else:
+                print("Error al iniciar sesión")
+                return
 
     def is_found_data(self):
         return self.is_found
@@ -221,16 +219,12 @@ class SheinController():
                     url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
                     self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
                     self.driver.get(url)
-                    time.sleep(1)
-                    #self.bloquear_requests()
                     self.extract_info(index)
                     self.url_complete=None
                 
                 elif data.get("product_id","").strip() and bool(int(data.get("is_parent",0))) and bool(int(data.get("get_variation",0))):
                     url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
                     self.driver.get(url)
-                    time.sleep(1)
-                    #self.bloquear_requests()
                     self.extract_variantes(index)
                     self.url_complete=None
                 else:
@@ -427,14 +421,21 @@ class SheinController():
         except:
             print("Captcha no resuelto automáticamente, por favor resuélvelo manualmente.")
             #self.driver.get("https://us.shein.com/login")
-            if not "captcha_type=905" in self.driver.current_url:
-                url=self.driver.current_url
-                new_url = url.replace("captcha_type", "captcha_type=905")
-                self.driver.get(new_url)
-            path_img=self.obtains_img_captcha()
-            result_solve_captcha= self.solver_click_captcha(path_img)
-            if not result_solve_captcha:
-                print("Error al resolver el CAPTCHA.")
+            # if not "captcha_type=905" in self.driver.current_url:
+            #     url=self.driver.current_url
+            #     new_url = url.replace("captcha_type", "captcha_type=905")
+            #     self.driver.get(new_url)
+            # path_img=self.obtains_img_captcha()
+            # result_solve_captcha= self.solver_click_captcha(path_img)
+            # if not result_solve_captcha:
+            #     print("Error al resolver el CAPTCHA.")
+            #     return
+            response_logout=self.logout_data()
+            if response_logout:
+                print("Acceso al producto exitoso:", self.driver.current_url)
+            else:
+                print("Error al cerrar sesión.")
+                self.product_data_not_found_api_ctrl(index)
                 return
 
             
@@ -1378,7 +1379,26 @@ class SheinController():
         log_list = [log_row]
 
         return json.dumps(log_list)
-    
+
+
+    def logout_data(self):
+        self.driver.get(self.url_base_usa+"user/auth/logout")
+        try:
+            WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@class="multi-account__main"]'))
+            )
+            
+            click_return_login=WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.XPATH,'//div[@class="multi-account__main"]//div[@class="multi-account__login"]'))
+            )
+            click_return_login.click()
+            
+            return self.login_data(refresh=False,change_email=True)
+
+        except Exception as e:
+            print(e)
+            return False
+
 
     def extract_variantes(self,index:int):
         
@@ -1401,9 +1421,15 @@ class SheinController():
         if "captcha" not in self.driver.current_url:
             print("Página del producto lista para el scraping.")  
         else:
-            print("Permaneciendo en la página del CAPTCHA.")
-            #logica captcha 
-            return
+            response_logout=self.logout_data()
+            if response_logout:
+                print("Logout exitoso")
+            else:
+                print("Error al hacer logout")
+                self.product_data_not_found_api_ctrl(index)
+
+                return
+            
         try:
             self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             response_json=self.extract_data_soup()
