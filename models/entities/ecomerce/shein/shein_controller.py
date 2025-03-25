@@ -57,7 +57,7 @@ class SheinController():
         self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
         self.is_found=None
-        self.emails=["luispubg9905@hotmail.com","anderson_escorpio_122@hotmail.com","ndrsnvenegas♠gmail.com"]
+        self.emails=["ndrsnvenegas@gmail.com","anderson_escorpio_122@hotmail.com","luispubg9905@hotmail.com"]
         self.password="Heaveny2"
         self.email_index = 0  # Índice para controlar el cambio de email
         self.email = self.emails[self.email_index] 
@@ -65,17 +65,17 @@ class SheinController():
  
     def init_driver(self):
             """ Inicializa el WebDriver con las opciones deseadas """
-            # headers = {
-            #     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            #     'Accept': "*/*",
-            #     'Accept-Language': self.language,
-            #     'Accept-Encoding': "gzip,deflate,br",
-            #     'Connection': "keep-alive"
-            # }
             user_agent=random.choice(user_agents)
+            headers = {
+                'User-Agent': user_agent,
+                'Accept': "*/*",
+                'Accept-Language': self.language,
+                'Accept-Encoding': "gzip,deflate,br",
+                'Connection': "keep-alive"
+            }
             selenium_url = 'http://selenium:4444/wd/hub'
             opts = Options()
-            #opts.add_argument("--headless") 
+            opts.add_argument("--headless") 
             opts.add_argument("--start-maximized")
             opts.add_argument("--disable-notifications")
             #opts.add_argument("--lang=" + self.language)
@@ -98,8 +98,34 @@ class SheinController():
             #opts.add_experimental_option("prefs", prefs)
             opts.add_argument("--ignore-certificate-errors")
             opts.add_argument(f'User-agent={user_agent}')
-            driver= webdriver.Chrome(options=opts,)
+            driver= webdriver.Remote(
+                command_executor=selenium_url,
+                options=opts
+            )
+            #driver= webdriver.Chrome(options=opts,)
             return driver
+
+    def save_error_files(self,file_name="error_screenshot", extension=".png"):
+        
+        try:
+            # Construir las rutas para la captura de pantalla y el HTML
+            screenshot_path = f"{self.images_path}/_{file_name}{extension}"
+            html_path = f"{self.images_path}/_error_page.html"
+
+            # Crear directorios si no existen
+            os.makedirs(os.path.dirname(screenshot_path), exist_ok=True)
+
+            # Guardar la captura de pantalla
+            self.driver.save_screenshot(screenshot_path)
+            print(f"✅ Captura de pantalla guardada en: {screenshot_path}")
+
+            # Guardar el HTML
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(self.driver.page_source)
+            print(f"✅ HTML de la página guardado en: {html_path}")
+
+        except Exception as e:
+            print(f"❌ Error al guardar los archivos: {e}")
 
 
     def login_data(self,refresh=True,change_email=False)->bool:
@@ -107,6 +133,8 @@ class SheinController():
 
         if change_email:
             # Mover al siguiente email en el ciclo
+            
+            #self.driver.delete_all_cookies()
             self.email_index = (self.email_index + 1) % len(self.emails)
             self.email = self.emails[self.email_index]
         
@@ -174,14 +202,19 @@ class SheinController():
                 click_skip=self.driver.find_element(By.XPATH,'//div[@class="sui-dialog__body"]//div[@class="skip"]/span')
                 click_skip.click()
             except Exception as e:
-                print(e)
+                self.save_error_files()
                 return False
 
             if self.driver.current_url==current_url:
                 return False
             
+
+            print("Login exitoso")
+            if change_email:
+                self.driver.get(self.url_complete)
             return True
         except Exception as e:
+            self.save_error_files(file_name="error_login")
             print(e)
             return False
 
@@ -217,7 +250,7 @@ class SheinController():
 
                 if data.get("product_id", None).strip() and bool(int(data.get("is_parent", False))) and not bool(int(data.get("get_variation", 0))):
                     url=self.url_base+f"product-p-{data['product_id']}.html?languaje=es"
-                    self.url_complete=self.url_base_usa+f"product-p-{data['product_id']}.html"
+                    self.url_complete=url
                     self.driver.get(url)
                     self.extract_info(index)
                     self.url_complete=None
@@ -1396,6 +1429,7 @@ class SheinController():
             return self.login_data(refresh=False,change_email=True)
 
         except Exception as e:
+            self.save_error_files(file_name="logout_error")
             print(e)
             return False
 
