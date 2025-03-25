@@ -8,7 +8,7 @@ from selenium.webdriver.common.keys import Keys
 import time
 from selenium.webdriver.common.action_chains import ActionChains
 import random
-
+import undetected_chromedriver as uc
 from models.entities.ecomerce.shein.shein_processor import SheinProcessor 
 
 
@@ -34,7 +34,7 @@ class SheinController():
         # self.domain_path = os.getenv('DOMAIN_LOCAL')
         self.url_complete=None
         self.is_found=None
-        self.emails=["luispubg9905@hotmail.com","anderson_escorpio_122@hotmail.com","ndrsnvenegas♠gmail.com"]
+        self.emails=["luispubg9905@hotmail.com","anderson_escorpio_122@hotmail.com","ndrsnvenegas@gmail.com"]
         self.password="Heaveny2"
         self.email_index = 0  # Índice para controlar el cambio de email
         self.email = self.emails[self.email_index] 

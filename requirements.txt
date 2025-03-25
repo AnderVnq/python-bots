@@ -101,8 +101,10 @@ trio==0.26.2
 trio-websocket==0.11.1
 typing_extensions==4.12.2
 tzdata==2025.1
+undetected-chromedriver==3.5.5
 urllib3==2.2.3
 websocket-client==1.8.0
+websockets==15.0.1
 Werkzeug==3.0.4
 wsproto==1.2.0
 yarl==1.18.0

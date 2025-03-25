@@ -35,6 +35,7 @@ from shared.user_agents import user_agents,blocked_endpoints
 import random
 from solver_captcha_individual_detect import *
 import tempfile
+import undetected_chromedriver as uc
 
 
 
@@ -63,47 +64,58 @@ class SheinController():
         self.email = self.emails[self.email_index] 
         self.icon_detector=None
  
-    def init_driver(self):
-            """ Inicializa el WebDriver con las opciones deseadas """
-            user_agent=random.choice(user_agents)
-            headers = {
-                'User-Agent': user_agent,
-                'Accept': "*/*",
-                'Accept-Language': self.language,
-                'Accept-Encoding': "gzip,deflate,br",
-                'Connection': "keep-alive"
-            }
-            selenium_url = 'http://selenium:4444/wd/hub'
-            opts = Options()
-            opts.add_argument("--headless") 
-            opts.add_argument("--start-maximized")
-            opts.add_argument("--disable-notifications")
-            #opts.add_argument("--lang=" + self.language)
-            #INIT Por Pedro 
-            opts.add_experimental_option('detach',True)
-            opts.add_experimental_option('excludeSwitches',['enable-automation'])
-            opts.add_experimental_option('useAutomationExtension',False)
-            opts.add_argument('--disable-blink-features=AutomationControlled')
-            opts.add_argument('--disable-infobars')
-            opts.add_argument('--disable-browser-side-navigation')
-            #END
-            opts.add_argument("--lang=es-ES")
-            opts.add_argument("--disable-gpu")
-            opts.add_argument("--disable-extensions")
-            opts.add_argument("--disable-software-rasterizer")  # Nueva opción para reducir tiempos de carga
-            opts.add_argument("--no-sandbox")  # Mejora el rendimiento en algunos entornos
-            opts.add_argument("--disable-dev-shm-usage")  # Mejora en sistemas con poca memoria compartida
-            #opts.add_argument("--disk-cache-dir=/tmp/cache")  # Redireccionar caché para mejorar tiempos
-            #prefs = {"profile.managed_default_content_settings.images": 2}
-            #opts.add_experimental_option("prefs", prefs)
-            opts.add_argument("--ignore-certificate-errors")
-            opts.add_argument(f'User-agent={user_agent}')
-            driver= webdriver.Remote(
-                command_executor=selenium_url,
-                options=opts
+    def init_driver(self,remote=True,selenium_url='http://selenium:4444/wd/hub'):
+        """ Inicializa el WebDriver con las opciones deseadas """
+        user_agent = random.choice(user_agents)
+        options = uc.ChromeOptions()
+        language='es-ES'
+        # Opciones comunes anti detección
+        options.add_argument("--headless=new")  # Usa el nuevo modo headless de Chrome
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-notifications")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-browser-side-navigation")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--lang=" + language)
+        options.add_argument(f"user-agent={user_agent}")
+        options.add_argument("--ignore-certificate-errors")
+
+        # Mejora: permitir persistencia en caso de pruebas manuales
+        options.add_experimental_option("detach", True)
+        options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        options.add_experimental_option('useAutomationExtension', False)
+
+        # Inicializa UC Chrome driver
+        if remote:
+            driver = uc.Chrome(
+                options=options,
+                driver_executable_path=None,
+                command_executor=selenium_url
             )
-            #driver= webdriver.Chrome(options=opts,)
-            return driver
+        else:
+            driver = uc.Chrome(options=options)
+
+        # Inyectar headers extra vía DevTools Protocol (si es necesario)
+        driver.execute_cdp_cmd("Network.setUserAgentOverride", {
+            "userAgent": user_agent,
+            "acceptLanguage": language,
+            "platform": "Win32"
+        })
+
+        driver.execute_cdp_cmd("Network.enable", {})
+        driver.execute_cdp_cmd("Network.setExtraHTTPHeaders", {
+            "headers": {
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive"
+            }
+        })
+
+        return driver
 
     def save_error_files(self,file_name="error_screenshot", extension=".png"):
         
